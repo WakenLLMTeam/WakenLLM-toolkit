@@ -1,0 +1,32 @@
+# 实验基本设置
+experiment_name: "qwen_on_fld_step1"
+model_name: "qwen2.5-7b-instruct"
+dataset_name: "FLD"
+max_workers: 5
+
+# 路径设置 (使用占位符)
+# {dataset_name} 和 {model_name} 将会被程序动态替换
+run_tasks:
+  - "vanilla"         # 对应 run_settings1.sh 的流程
+  - "rtg_label"       # 对应 run_settings2.sh 的流程
+
+# rtg_label 任务的特定参数 (取代了shell脚本里的SITUATIONS数组)
+rtg_label_settings:
+  # 您可以在这里指定要运行的特定情况
+  situations: ["All_Wrong", "2Over3_Wrong", "Half_Wrong", "All_Right"]
+paths:
+  # 原始数据集的路径
+  raw_dataset: "./data/{dataset_name}.json"
+  # 评估结果的输出路径
+  evaluation: "./results/evaluation_{dataset_name}_{model_name}.json"
+  # Step1产出的 "False UNKNOWN" 样本路径
+  step1_output: "./results/False UNKNOWN_{dataset_name}_1_{model_name}.json"
+  step4_postprocess_template: "results/False UNKNOWN_{dataset_name}_Postprocess1_{model_name}.json"
+  # Stage 2处理后的最终数据集
+  step5_final_output_template: "results/False UNKNOWN_{dataset_name}_Postprocess2_{model_name}.json"
+  # 按情况保存RtG Label测试的最终评估结果
+  rtg_label_eval_template: "results/evaluation_{dataset_name}_{model_name}_rtg_label_{situation}.json"
+  # 保存RtG Process测试第一步的输出
+  rtg_process_step4_output_template: "results/False UNKNOWN_{dataset_name}_Postprocess_Reflection1_{model_name}.json"
+  rtg_process_step5_output_template: "results/False UNKNOWN_{dataset_name}_Postprocess_Reflection2_{model_name}.json"
+  rtg_process_final_eval_template: "results/evaluation_{dataset_name}_{model_name}_rtg_process_final.json"

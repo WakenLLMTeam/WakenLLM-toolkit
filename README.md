@@ -32,7 +32,7 @@ This toolkit provides a modular and extensible framework to reproduce all experi
 
 3.  **Install dependencies:**
     ```bash
-    pip install -r requirements.txt
+    pip install -r requirements.txt.txt
     ```
 
 ## ⚙️ Configuration

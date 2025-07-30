@@ -3,7 +3,7 @@ from src.config_loader import load_config
 from src.data_handler import DataHandler
 from src.llm_handler import LLMHandler
 from src.evaluator import Evaluator
-from src.pipeline import WakenllmPipeline # 导入我们的主角
+from src.pipeline import WakenLLMPipeline # 导入我们的主角
 
 def main():
     parser = argparse.ArgumentParser(description="WAKENLLM Toolkit")
@@ -24,7 +24,7 @@ def main():
     evaluator = Evaluator()
 
     # --- 3. 组装并启动Pipeline！ ---
-    pipeline = WakenllmPipeline(config, data_handler, llm_handler, evaluator)
+    pipeline = WakenLLMPipeline(config, data_handler, llm_handler, evaluator)
     pipeline.run()
 
     print("\n--- 实验流程执行完毕 ---")

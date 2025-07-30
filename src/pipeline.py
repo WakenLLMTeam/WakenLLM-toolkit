@@ -6,7 +6,7 @@ from .data_handler import DataHandler
 from .llm_handler import LLMHandler
 from .evaluator import Evaluator
 
-class WakenllmPipeline:
+class WakenLLMPipeline:
     """
     WAKENLLM实验框架的核心流程。
     负责编排数据处理、模型调用和评估等所有步骤。

@@ -26,8 +26,6 @@ The WAKENLLM framework evaluates LLMs through a series of carefully designed pip
 
 ## 🔧 Installation
 
-## 🔧 Installation
-
 1.  **Clone the repository:**
     ```bash
     git clone [https://github.com/WakenLLMTeam/WakenLLM-toolkit.git](https://github.com/WakenLLMTeam/WakenLLM-toolkit.git)
@@ -176,7 +174,6 @@ If you use this toolkit or the WAKENLLM framework in your research, please cite 
       url={https://arxiv.org/abs/2507.16199}, 
 }
 ```
-*(Note: This is an arXiv preprint. Please update with official publication details if this paper is accepted to a conference.)*
 
 ## 📄 License
 

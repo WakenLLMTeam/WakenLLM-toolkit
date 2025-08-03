@@ -1,4 +1,4 @@
-# WAKENLLM Toolkit
+# WakenLLM Toolkit
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
@@ -19,8 +19,9 @@ The WakenLLM framework evaluates LLMs through a series of carefully designed pip
 * **Modular Architecture**: A clean, object-oriented design that separates concerns (data handling, model interaction, evaluation, etc.).
 * **Configuration Driven**: Easily manage and run complex experiments by simply editing YAML configuration files.
 * **Extensible**: Designed to be easily extended with new datasets, models, or experimental pipelines.
-* **Reproducibility**: Implements the full end-to-end workflows for:
-    * The **Vanilla Pipeline** (Stage 1 Stimulation & Stage 2 Reflection).
+* **Reproducibility**: 
+Implements the full end-to-end workflows for the following three settings:
+    * **Vanilla Pipeline** (Stage 1 Stimulation & Stage 2 Reflection).
     * **Remind-then-Guide (RtG) Label Conformity** tests.
     * **Remind-then-Guide (RtG) Reasoning Process Conformity** tests.
 

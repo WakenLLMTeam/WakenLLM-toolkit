@@ -63,7 +63,7 @@ This project requires API access to one or more LLMs.
 All experiment settings are controlled via YAML files in the `configs/` directory. You can modify the main `configs/experiment.yaml` file or create new ones for different runs.
 
 Key parameters include:
-* `model_name`: The name of the model you want to test (e.g., "gpt-4-turbo").
+* `model_name`: The name of the model you want to test (e.g., "gpt-4o").
 * `dataset_name`: The dataset to use (`FLD`, `FOLIO`, `ScienceQA_phy_bio`, etc.).
 * `run_tasks`: A list of experiments to run. Options are: `"vanilla"`, `"rtg_label"`, `"rtg_process"`.
 
@@ -85,7 +85,7 @@ To run the Stage 1 Stimulation and Stage 2 Reflection on the `FLD` dataset:
 
 ```yaml
 # In configs/experiment.yaml
-model_name: "gpt-4-turbo"
+model_name: "gpt-3.5-turbo-1106"
 dataset_name: "FLD"
 run_tasks:
   - "vanilla"
@@ -109,7 +109,7 @@ You can run multiple experiments sequentially in a single command by listing the
 
 ```yaml
 # In configs/experiment.yaml
-model_name: "claude-3-opus-20240229"
+model_name: "llama-3.1-8b-instruct"
 dataset_name: "ScienceQA_phy_bio"
 run_tasks:
   - "vanilla"
@@ -130,7 +130,7 @@ Inside this directory, you will find:
 
 The toolkit expects the raw dataset files to be placed in the `data/` directory. Please download the datasets from their original sources and place them accordingly.
 
-* [**ScienceQA**](https://github.com/lupantech/ScienceQA): A large-scale, multi-modal dataset for science question answering.
+* [**ScienceQA**](https://github.com/lupantech/ScienceQA): A large-scale, multi-modal dataset for science question answering. In this work, we only select the pure language samples.
 * [**FOLIO**](https://github.com/Yifan-Song793/FOLIO): A benchmark for evaluating faithfulness in logical reasoning over text.
 
 Ensure the downloaded files are named to match the `dataset_name` used in the configuration (e.g., `data/FOLIO.json`).

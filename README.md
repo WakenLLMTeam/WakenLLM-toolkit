@@ -4,13 +4,13 @@
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
 [![arXiv](https://img.shields.io/badge/arXiv-2507.16199-b31b1b.svg)](https://arxiv.org/abs/2507.16199)
 
-This repository contains the official implementation for the arxiv preprint paper: **"WAKENLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**.
+This repository contains the official implementation for the arxiv preprint paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**.
 
 This toolkit provides a modular and extensible framework to reproduce all experiments in the paper. It facilitates the identification of the "Vague Perception" phenomenon and the execution of the multi-stage stimulation and reflection pipelines.
 
 ## Framework Overview
 
-The WAKENLLM framework evaluates LLMs through a series of carefully designed pipelines. The diagram below illustrates the core workflow.
+The WakenLLM framework evaluates LLMs through a series of carefully designed pipelines. The diagram below illustrates the core workflow.
 
 ![WAKENLLM Framework Diagram](./docs/pipeline.png)
 
@@ -50,7 +50,7 @@ Before running any experiments, you need to configure your API keys and experime
 
 ### 1. API Keys
 
-This project requires API access to one or more LLMs.
+This project requires API to access to one or more LLMs.
 
 1.  Copy the template file `secrets.template.yaml` to a new file named `secrets.yaml`:
     ```bash

@@ -51,7 +51,7 @@ Before running any experiments, you need to configure your API keys and experime
 
 ### 1. API Keys
 
-This project requires API to access to one or more LLMs.
+This project requires API keys to access to LLMs.
 
 1.  Copy the template file `secrets.template.yaml` to a new file named `secrets.yaml`:
     ```bash
@@ -130,6 +130,8 @@ Inside this directory, you will find:
 ## 📚 Data Preparation
 
 The toolkit expects the raw dataset files to be placed in the `data/` directory. Please download the datasets from their original sources and place them accordingly.
+
+* [**FLD**](https://github.com/hitachi-nlp/FLD): A benchmark dataset for evaluating logical reasoning and faithfulness in natural language processing tasks, focusing on fine-grained logical deduction and verification.
 
 * [**ScienceQA**](https://github.com/lupantech/ScienceQA): A large-scale, multi-modal dataset for science question answering. In this work, we only select the pure language samples.
 * [**FOLIO**](https://github.com/Yifan-Song793/FOLIO): A benchmark for evaluating faithfulness in logical reasoning over text.

@@ -22,7 +22,7 @@ The WakenLLM framework evaluates LLMs through a series of carefully designed pip
 * **Reproducibility**: Implements the full end-to-end workflows for:
     * The **Vanilla Pipeline** (Stage 1 Stimulation & Stage 2 Reflection).
     * **Remind-then-Guide (RtG) Label Conformity** tests.
-    * **Remind-then-Guide (RtG) Process Conformity** tests.
+    * **Remind-then-Guide (RtG) Reasoning Process Conformity** tests.
 
 ## 🔧 Installation
 

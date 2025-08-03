@@ -44,7 +44,7 @@ class DataHandler:
     # -----------------------------------------
 
     def load_and_filter_dataset(self) -> List[Dict[str, Any]]:
-        """加载并筛选原始数据集中的可验证样本。"""
+        """加载并筛选原始数据集中的可验证样本。(使用严格的 '[]' 访问器)"""
         raw_dataset_path = self._get_path('raw_dataset_template')
         print(f"正在从 {raw_dataset_path} 加载数据...")
 
@@ -55,15 +55,16 @@ class DataHandler:
             print(f"错误：找不到数据集文件 {raw_dataset_path}。请检查您的data目录和配置文件。")
             return []
 
+        # --- 关键修正：将 .get("proof_label") 修改为 ["proof_label"] ---
         filtered_dataset = [
             element for element in full_dataset
-            if element.get("proof_label") in ["__PROVED__", "__DISPROVED__"]
+            if element["proof_label"] in ["__PROVED__", "__DISPROVED__"]
         ]
         print(f"数据加载完成，筛选出 {len(filtered_dataset)} 条可验证样本。")
         return filtered_dataset
 
     def load_unverifiable_dataset(self) -> List[Dict[str, Any]]:
-        """加载并筛选出原始数据集中的不可验证（__UNKNOWN__）样本。"""
+        """加载并筛选出原始数据集中的不可验证样本。(使用严格的 '[]' 访问器)"""
         raw_dataset_path = self._get_path('raw_dataset_template')
         print(f"正在从 {raw_dataset_path} 加载数据以寻找不可验证样本...")
 
@@ -74,9 +75,10 @@ class DataHandler:
             print(f"错误：找不到数据集文件 {raw_dataset_path}。")
             return []
 
+        # --- 关键修正：将 .get("proof_label") 修改为 ["proof_label"] ---
         unverifiable_dataset = [
             element for element in full_dataset
-            if element.get("proof_label") == "__UNKNOWN__"
+            if element["proof_label"] == "__UNKNOWN__"
         ]
         print(f"数据加载完成，筛选出 {len(unverifiable_dataset)} 条不可验证样本。")
         return unverifiable_dataset

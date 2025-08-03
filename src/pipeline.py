@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import List, Dict, Any, Tuple
 
 # 导入项目的所有依赖模块
@@ -83,19 +84,57 @@ class WakenllmPipeline:
             self.data_handler.save_rtg_label_situation_results(eval_results, situation)
         print("\nRtG Label Conformity 实验执行完毕。")
 
-    async def run_rtg_process_experiment(self, stage1_processed_data: List[Dict[str, Any]]):
-        """执行完整的RtG Process Conformity测试。"""
-        if not stage1_processed_data: return
+    async def run_rtg_process_experiment(self, all_vague_samples: List[Dict[str, Any]]):
+        """执行完整的RtG Process Conformity测试，严格复刻旧版step4,5,6的逻辑。"""
+        if not all_vague_samples:
+            print("没有模糊样本，跳过RtG Process Conformity测试。")
+            return
 
-        failed_samples = [item for item in stage1_processed_data if
-                          item.get("Perception Type") in ["False KNOWN", "False UNKNOWN"]]
-        if not failed_samples: print("没有失败的样本，无需进行RtG Process测试。"); return
+        # === STAGE 1: 生成初始推理 (复刻 step4_settings3.py) ===
+        print(f"\n--- [RtG Process Test - Step 1/3] 正在为 {len(all_vague_samples)} 个样本生成初始推理... ---")
+        step4_prompts = [self._build_prompt(item, "rtg_process_step4") for item in all_vague_samples]
+        step4_llm_results = await self.llm_handler.batch_query(step4_prompts)
 
-        print(f"\n--- [RtG Process Test - Step 4] 准备对 {len(failed_samples)} 个样本进行过程引导... ---")
-        prompts = [self._build_prompt(item, "rtg_process_step4") for item in failed_samples]
-        await self.llm_handler.batch_query(prompts)
+        # 处理并保存第一阶段的结果
+        reflection1_output = []
+        step4_predictions = [self.evaluator.parse_llm_output(res) for res in step4_llm_results]
+        ground_truths = [item['proof_label'] for item in all_vague_samples]
+        for i, item in enumerate(all_vague_samples):
+            new_item = item.copy()
+            gt, pred = ground_truths[i], step4_predictions[i]
+            new_item["reasoning"] = step4_llm_results[i]  # 保存完整的原始推理
+            # 更新 Perception Type
+            if gt in ["__PROVED__", "__DISPROVED__"]:
+                new_item["Perception Type"] = "True KNOWN" if pred == gt else (
+                    "False KNOWN" if pred != "__UNKNOWN__" else "False UNKNOWN")
+            else:  # gt is __UNKNOWN__
+                new_item["Perception Type"] = "True UNKNOWN" if pred == "__UNKNOWN__" else "False KNOWN"
+            reflection1_output.append(new_item)
 
-        print("\nRtG Process Conformity 实验的第一步已完成。")
+        print("第一阶段完成。")
+
+        # === STAGE 2: 对“自信的错误”进行反思 (复刻 step5_settings3.py) ===
+        step5_input = [item for item in reflection1_output if item["Perception Type"] == "False KNOWN"]
+        print(f"\n--- [RtG Process Test - Step 2/3] 正在对 {len(step5_input)} 个 'False KNOWN' 样本进行定向反思... ---")
+        if step5_input:
+            step5_prompts = [self._build_prompt(item, "rtg_process_step5_6") for item in step5_input]
+            await self.llm_handler.batch_query(step5_prompts)  # 旧脚本只执行了，没有评估和保存，我们暂时也只执行
+        print("第二阶段完成。")
+
+        # === STAGE 3: 对“所有样本”进行最终反思 (复刻 step6_settings3.py) ===
+        step6_input = reflection1_output  # 输入是第一阶段的完整输出
+        print(f"\n--- [RtG Process Test - Step 3/3] 正在对全部 {len(step6_input)} 个样本进行最终反思... ---")
+        step6_prompts = [self._build_prompt(item, "rtg_process_step5_6") for item in step6_input]
+        step6_llm_results = await self.llm_handler.batch_query(step6_prompts)
+
+        # 评估并保存最终结果
+        step6_predictions = [self.evaluator.parse_llm_output(res) for res in step6_llm_results]
+        step6_ground_truths = [item['proof_label'] for item in step6_input]
+        print("\n--- RtG Process Conformity 最终评估结果 ---")
+        self.evaluator.calculate_accuracy(step6_predictions, step6_ground_truths)
+        # 这里可以添加保存最终结果到文件的逻辑...
+
+        print("\nRtG Process Conformity 实验执行完毕。")
 
     # =================================================================
     # 3. 管道中的具体步骤 (PIPELINE STEPS)
@@ -107,6 +146,10 @@ class WakenllmPipeline:
         verifiable_errors, model_confusion_errors = await asyncio.gather(task1, task2)
         all_vague_samples = verifiable_errors + model_confusion_errors
         print(f"\n预处理完成，共找到 {len(all_vague_samples)} 个需要进行处理的模糊感知样本。")
+        print("--- [VERIFICATION] Saving preprocessing result for comparison... ---")
+        with open("results/all_vague_samples_NEW.json", "w", encoding="utf-8") as f:
+            json.dump(all_vague_samples, f, indent=2)
+        # --------------------------------
         return all_vague_samples
 
     async def _identify_verifiable_errors(self) -> List[Dict[str, Any]]:
@@ -116,6 +159,16 @@ class WakenllmPipeline:
         prompts = [self._build_prompt(item, "step1") for item in dataset]
         llm_results = await self.llm_handler.batch_query(prompts)
         predictions = [self.evaluator.parse_llm_output(res) for res in llm_results]
+        step1_trace_log_new = []
+        for i, item in enumerate(dataset):
+            step1_trace_log_new.append({
+                "id": item.get("id", f"new_step1_{i}"),
+                "hypothesis": item["Conclusion"],
+                "raw_model_output": llm_results[i],
+                "parsed_label": predictions[i]
+            })
+        with open("results/step1_trace_NEW.json", "w", encoding="utf-8") as f:
+            json.dump(step1_trace_log_new, f, indent=2, ensure_ascii=False)
         ground_truths = [item['proof_label'] for item in dataset]
         vague_samples = []
         for i, item in enumerate(dataset):
@@ -134,6 +187,16 @@ class WakenllmPipeline:
         prompts = [self._build_prompt(item, "step2") for item in dataset]
         llm_results = await self.llm_handler.batch_query(prompts)
         predictions = [self.evaluator.parse_binary_answer(res) for res in llm_results]
+        step2_trace_log_new = []
+        for i, item in enumerate(dataset):
+            step2_trace_log_new.append({
+                "id": item.get("id", f"new_step2_{i}"),
+                "hypothesis": item["Conclusion"],
+                "raw_model_output": llm_results[i],
+                "parsed_label": predictions[i]
+            })
+        with open("results/step2_trace_NEW.json", "w", encoding="utf-8") as f:
+            json.dump(step2_trace_log_new, f, indent=2, ensure_ascii=False)
         vague_samples = []
         for i, item in enumerate(dataset):
             if predictions[i] == "False":
@@ -169,6 +232,9 @@ class WakenllmPipeline:
         self.data_handler.save_stage1_stimulation_output(processed_dataset)
         print(
             f"Stage 1 完成。成功转换 {tcr1_results['correct_count']} 个样本。有 {len(failed_samples)} 个样本将进入下一阶段。")
+        print("--- [VERIFICATION] Saving Stage 1 failed samples for comparison... ---")
+        with open("results/stage1_failed_samples_NEW.json", "w", encoding="utf-8") as f:
+            json.dump(failed_samples, f, indent=2)
         return processed_dataset, failed_samples
 
     async def _run_stage2_reflection(self, stage1_failed_samples: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -225,14 +291,23 @@ class WakenllmPipeline:
             return self._build_rtg_label_prompt(element, situation=kwargs.get("situation", ""))
         elif step_key == "rtg_process_step4":
             return self._build_rtg_process_step4_prompt(element)
+        elif step_key == "rtg_process_step5_6":
+            return self._build_rtg_process_step5_6_prompt(element)
         else:
             raise ValueError(f"未知的prompt构建键: {step_key}")
 
     def _build_step1_prompt(self, element: Dict[str, Any]) -> List[Dict[str, str]]:
         hypothesis = element["Conclusion"]
         facts = element["Facts"]
+        # 最终修正版：与旧脚本中的原始字符串实现像素级匹配，包括那个双空格
         content = (
-            f"Here is the Hypothesis:\n{hypothesis}\n\n" f"Now These are the 'facts':\n{facts}\n\n" "Please carefully evaluate the relationship between the facts and the hypothesis. " "Return __PROVED__ only if the facts support the hypothesis.\n" "Return __DISPROVED__ only if the facts contradict the hypothesis.\n" "Return UNKNOWN if the facts are insufficient to make a definitive conclusion.\n\n" "Output only: Conclusion: __PROVED__, __DISPROVED__, or __UNKNOWN__.")
+            f"Here is the Hypothesis:\n{hypothesis}\n"
+            f"Now These are the 'facts':\n{facts}\n"
+            "Please carefully evaluate the relationship between the facts and the hypothesis. Return UNKNOWN if the facts are insufficient to make a definitive conclusion.\n"
+            "Return __PROVED__ only if the facts support the hypothesis.\n"
+            "Return __DISPROVED__ only if the facts contradict the hypothesis.\n" # 关键细节：facts 和 contradict 之间有两个空格
+            "Output only: Conclusion: __PROVED__, __DISPROVED__, or __UNKNOWN__."
+        )
         return [{"role": "user", "content": content}]
 
     def _build_step2_prompt(self, element: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -246,7 +321,37 @@ class WakenllmPipeline:
         hypothesis = element["Conclusion"]
         facts = element["Facts"]
         content = (
-            f"Here is the Hypothesis:\n{hypothesis}\n\n" f"Now These are the 'facts':\n{facts}\n\n" "Task: Determine if the hypothesis is logically supported by the facts.\n\n" "Important Guidelines:\n" "1. For __PROVED__:\n" "   - The facts must directly and clearly support the hypothesis\n" "   - All necessary logical connections must be present\n" "2. For __DISPROVED__:\n" "   - The facts must directly and clearly contradict the hypothesis\n" "3. For __UNKNOWN__:\n" "   - Only use when facts are truly insufficient\n" "   - Not because of your subjective limitations\n\n" "Critical Rules:\n" "1. Think carefully before making your decision\n" "2. These cases can be reasoned out objectively\n" "3. Do not output __UNKNOWN__ due to subjective limitations\n" "4. You should NOT output __UNKNOWN__ because of your own performance limits. Try harder when come across difficulty\n\n" "Output exactly one of: __PROVED__, __DISPROVED__, or __UNKNOWN__")
+            f"Here is the Hypothesis:\n{hypothesis}\n\n"
+            f"Now These are the 'facts':\n{facts}\n\n"
+            "Task: Determine if the hypothesis is logically supported by the facts.\n\n"
+            "Important Guidelines:\n"
+            "1. For __PROVED__:\n"
+            "   - The facts must directly and clearly support the hypothesis\n"
+            "   - All necessary logical connections must be present\n"
+            "   - No contradictory facts should exist\n"
+            "   - The support must be unambiguous\n\n"
+            "2. For __DISPROVED__:\n"
+            "   - The facts must directly and clearly contradict the hypothesis\n"
+            "   - The contradiction must be explicit and unambiguous\n"
+            "   - No supporting facts should exist\n"
+            "   - The contradiction must be logically sound\n\n"
+            "3. For __UNKNOWN__:\n"
+            "   - Only use when facts are truly insufficient\n"
+            "   - Not because of your subjective limitations\n"
+            "   - Not because of unclear reasoning\n"
+            "   - Only when missing critical information\n\n"
+            "Critical Rules:\n"
+            "1. Think carefully before making your decision\n"
+            "2. These cases can be reasoned out objectively\n"
+            "3. Do not output __UNKNOWN__ due to subjective limitations\n"
+            "4. Output exactly one of: __PROVED__, __DISPROVED__, or __UNKNOWN__\n"
+            "5. Do not include any additional text or explanation\n\n"
+            "6. You should NOT output __UNKNOWN__ because of your own performance limits. Try harder when come across difficulty\n"
+            "Remember: Your output must be exactly one of these three options:\n"
+            "__PROVED__\n"
+            "__DISPROVED__\n"
+            "__UNKNOWN__"
+        )
         return [{"role": "user", "content": content}]
 
     def _build_stage2_reflection_prompt(self, element: Dict[str, Any]) -> List[Dict[str, str]]:
@@ -268,7 +373,45 @@ class WakenllmPipeline:
     def _build_rtg_process_step4_prompt(self, element: Dict[str, Any]) -> List[Dict[str, str]]:
         hypothesis = element["Conclusion"]
         facts = element["Facts"]
-        previous_reasoning = element.get("stage1_reasoning", "No previous reasoning available.")
         content = (
-            f"Task: Re-evaluate based on a previous line of reasoning.\n\n" f"Hypothesis:\n{hypothesis}\n\n" f"Facts:\n{facts}\n\n" f"Here is the reasoning from a previous attempt, which may be flawed:\n" f"--- PREVIOUS REASONING ---\n{previous_reasoning}\n--- END PREVIOUS REASONING ---\n\n" f"Instruction: Reflect on this reasoning. Does it correctly lead to the conclusion? " f"Provide your own, corrected final answer.\n\n" f"Output exactly one of: __PROVED__, __DISPROVED__, or __UNKNOWN__.")
+            f"Here is the Hypothesis:\n{hypothesis}\n"
+            f"Now These are the 'facts':\n{facts}\n"
+            "The Data were you previously mis-inferenced, pay more attention and not to make mistakes. "
+            "Think twice before outputing, as they can be reasoned out because of objective factors. "
+            "Subjective ability limits should be overcomed.\n\n"
+            "Please follow these steps:\n"
+            "1. First, carefully analyze the facts and the hypothesis\n"
+            "2. Then, explain your reasoning process step by step\n"
+            "3. Finally, conclude with your answer\n\n"
+            "Important guidelines:\n"
+            "1. If the facts logically support the hypothesis, output __PROVED__\n"
+            "2. If the facts logically contradict the the hypothesis , output __DISPROVED__\n"
+            "3. If the facts are insufficient to prove or disprove the answer to the Hypothesis, output __UNKNOWN__\n"
+            "4. Think twice before you output __UNKNOWN__, it is prohibited to output __UNKNOWN__ because of subjective factors like your ability\n\n"
+            "Please format your response as follows:\n"
+            "Reasoning Process:\n"
+            "[Your step-by-step reasoning here]\n\n"
+            "Conclusion: [__PROVED__ or __DISPROVED__ or __UNKNOWN__]"
+        )
         return [{"role": "user", "content": content}]
+
+    def _build_rtg_process_step5_6_prompt(self, element: Dict[str, Any]) -> List[Dict[str, str]]:
+        hypothesis = element["Conclusion"]
+        facts = element["Facts"]
+        # 确保能从 element 中获取到上一步的 reasoning
+        previous_reasoning = element.get("reasoning", "No previous reasoning available.")
+        content = (
+            f"Here is the Hypothesis:\n{hypothesis}\n"
+            f"Now These are the 'facts':\n{facts}\n"
+            "You previously mis inferenced the label, it coule be worked out by the facts, but you worked out the wrong label. Now your task is to determine if the hypothesis is PROVED or DISPROVED or UNKNOWNby the facts.\n"
+            "Important guidelines:\n"
+            "1. If the facts logically support the Hypothesis, output __PROVED__\n"
+            "2. If the facts logically contradict the Hypothesis, output __DISPROVED__\n"
+            "3. If the facts are insufficient to prove or disprove the Hypothesis, output __UNKNOWN__\n"
+            "3. Do not output any additional text, only the label (__PROVED__, __DISPROVED__, __UNKNOWN__)\n\n"
+            "4. Think twice before you output the __UNKNOWN__, it is prohibited to output __UNKNOWN__ because of subjective factos like your ability.\n"
+            "Previous reasoning process are here, learn from them and do not make the same mistake:\n"
+            f"{previous_reasoning}\n"
+        )
+        return [{"role": "user", "content": content}]
+

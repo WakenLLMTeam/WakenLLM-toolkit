@@ -5,19 +5,24 @@ class Evaluator:
     """
     负责所有评估指标的计算。
     """
+
     def parse_llm_output(self, text: str) -> str:
         """
-        使用正则表达式从模型的文本输出中提取标准标签。
+        从模型的文本输出中提取标准标签。
+        此最终版本与旧版 step1.py 的 extract_label 函数逻辑完全一致。
         """
         if not isinstance(text, str):
             return "__UNKNOWN__"
-        # 增加了对“__PROVED__”等格式的直接匹配，以防模型直接输出正确格式
-        m = re.search(r"__(DISPROVED|PROVED|UNKNOWN)__", text.upper())
-        if m:
-            return m.group(0)
 
-        m = re.search(r"(DISPROVED|PROVED|UNKNOWN)", text.upper())
-        return f"__{m.group(1)}__" if m else "__UNKNOWN__"
+        # 使用与 step1.py 完全相同的正则表达式逻辑，查找第一个出现的关键词
+        match = re.search(r"(DISPROVED|PROVED|UNKNOWN)", text.upper())
+
+        if match:
+            # 返回找到的第一个匹配项，并格式化
+            return f"__{match.group(1)}__"
+        else:
+            # 如果找不到任何关键词，则返回UNKNOWN
+            return "__UNKNOWN__"
 
     def calculate_accuracy(self, predictions: List[str], ground_truths: List[str]) -> Dict[str, Any]:
         """
@@ -37,16 +42,14 @@ class Evaluator:
         }
 
     def parse_binary_answer(self, text: str) -> str:
-        """从模型的输出中解析出'True'或'False'。"""
+        """从模型的输出中解析出'True'或'False'，与旧版step2.py逻辑保持严格一致。"""
         if not isinstance(text, str):
-            return "False"  # 发生错误时默认为推理能力问题
+            return "False"
 
-        # 将模型输出转为大写并去除首尾空格
         processed_text = text.strip().upper()
 
-        if "TRUE" in processed_text:
+        # 使用严格的 '==' 来匹配旧版逻辑，而不是宽容的 'in'
+        if processed_text == "TRUE":
             return "True"
-        elif "FALSE" in processed_text:
-            return "False"
         else:
-            return "False"  # 如果没有明确的True/False，也认为是推理能力问题
+            return "False"

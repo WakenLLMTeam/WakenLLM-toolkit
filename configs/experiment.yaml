@@ -6,9 +6,7 @@ max_workers: 5
 
 # 路径设置 (使用占位符)
 # {dataset_name} 和 {model_name} 将会被程序动态替换
-run_tasks:
-  - "vanilla"         # 对应 run_settings1.sh 的流程
-  - "rtg_label"       # 对应 run_settings2.sh 的流程
+run_tasks: ['rtg_process']       # 对应 run_settings2.sh 的流程
 
 # rtg_label 任务的特定参数 (取代了shell脚本里的SITUATIONS数组)
 rtg_label_settings:

@@ -1,7 +1,8 @@
 import asyncio
 import openai
-from typing import List, Dict, Any
 from tqdm.asyncio import tqdm_asyncio # 用于异步任务的进度条
+from typing import List, Dict, Any
+
 
 class LLMHandler:
     """
@@ -35,8 +36,7 @@ class LLMHandler:
         data = {
             "model": self.model_name,
             "messages": message,
-            "temperature": 0.0,
-            # 您可以在这里添加更多API参数，如top_p等
+            "temperature": 0.0
         }
 
         async with self.semaphore:

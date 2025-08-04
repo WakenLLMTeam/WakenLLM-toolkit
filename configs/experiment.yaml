@@ -1,40 +1,40 @@
-# 实验基本设置
+# Basic experiment settings
 experiment_name: "qwen_on_fld_step1"
 model_name: "qwen2.5-7b-instruct"
 dataset_name: "FLD"
 max_workers: 5
 
-# 路径设置 (使用占位符)
-# {dataset_name} 和 {model_name} 将会被程序动态替换
-run_tasks: ['rtg_process']       # 对应 run_settings2.sh 的流程
+# Path settings (using placeholders)
+# {dataset_name} and {model_name} will be dynamically replaced by the program
+run_tasks: ['rtg_process']       # Corresponds to run_settings2.sh workflow
 
-# rtg_label 任务的特定参数 (取代了shell脚本里的SITUATIONS数组)
+# Specific parameters for rtg_label tasks (replacing SITUATIONS array in shell scripts)
 rtg_label_settings:
-  # 您可以在这里指定要运行的特定情况
+  # You can specify specific situations to run here
   situations: ["All_Wrong", "2Over3_Wrong", "Half_Wrong", "All_Right"]
 paths:
-  # --- 通用路径 ---
-  # 原始数据集的路径模板
+  # --- Common paths ---
+  # Raw dataset path template
   raw_dataset_template: "data/{dataset_name}.json"
 
-  # --- Vanilla Pipeline 路径 ---
-  # Step1(预处理)产出的 "False UNKNOWN" 样本路径模板
+  # --- Vanilla Pipeline paths ---
+  # Step1 (preprocessing) output "False UNKNOWN" samples path template
   step1_output_template: "results/False UNKNOWN_{dataset_name}_1_{model_name}.json"
-  # Step2(预处理)产出的 "False UNKNOWN" 样本路径模板 (虽然我们内存合并了，但保留以备调试)
+  # Step2 (preprocessing) output "False UNKNOWN" samples path template (though we merge in memory, keep for debugging)
   step2_output_template: "results/False UNKNOWN_{dataset_name}_2_{model_name}.json"
-  # Stage 1 Stimulation (step4) 处理后的数据集
+  # Stage 1 Stimulation (step4) processed dataset
   step4_postprocess_template: "results/False UNKNOWN_{dataset_name}_Postprocess1_{model_name}.json"
-  # Stage 2 Reflection (step5) 处理后的最终数据集
+  # Stage 2 Reflection (step5) final processed dataset
   step5_final_output_template: "results/False UNKNOWN_{dataset_name}_Postprocess2_{model_name}.json"
 
-  # --- RtG Label Conformity 路径 ---
-  # 按情况保存RtG Label测试的最终评估结果
+  # --- RtG Label Conformity paths ---
+  # Save RtG Label test final evaluation results by situation
   rtg_label_eval_template: "results/evaluation_{dataset_name}_{model_name}_rtg_label_{situation}.json"
 
-  # --- RtG Process Conformity 路径 ---
-  # Step4 (过程引导) 的输出
+  # --- RtG Process Conformity paths ---
+  # Step4 (process guidance) output
   rtg_process_step4_output_template: "results/False UNKNOWN_{dataset_name}_Postprocess_Reflection1_{model_name}.json"
-  # Step5 (中间评估) 的输出
+  # Step5 (intermediate evaluation) output
   rtg_process_step5_output_template: "results/False UNKNOWN_{dataset_name}_Postprocess_Reflection2_{model_name}.json"
-  # Step6 (最终评估) 的输出
+  # Step6 (final evaluation) output
   rtg_process_final_eval_template: "results/evaluation_{dataset_name}_{model_name}_rtg_process_final.json"

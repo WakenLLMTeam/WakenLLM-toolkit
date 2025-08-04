@@ -2,17 +2,17 @@ import asyncio
 import json
 from typing import List, Dict, Any, Tuple
 
-# 导入项目的所有依赖模块
+# Import all project dependency modules
 from .data_handler import DataHandler
 from .llm_handler import LLMHandler
 from .evaluator import Evaluator
 
 
-# --- 修正：确保类名与 main.py 中导入的名称一致 ---
+# --- Fix: Ensure class name is consistent with the import in main.py ---
 class WakenllmPipeline:
     """
-    WAKENLLM实验框架的核心流程。
-    负责编排数据处理、模型调用和评估等所有步骤。
+    Core workflow of the WAKENLLM experimental framework.
+    Responsible for orchestrating all steps including data processing, model calls, and evaluation.
     """
 
     def __init__(self, config: Dict[str, Any], data_handler: DataHandler, llm_handler: LLMHandler,
@@ -21,89 +21,89 @@ class WakenllmPipeline:
         self.data_handler = data_handler
         self.llm_handler = llm_handler
         self.evaluator = evaluator
-        print("WakenllmPipeline 初始化完成。")
+        print("WakenllmPipeline initialization completed.")
 
     # =================================================================
-    # 1. 总运行入口 (RUN METHOD) - 决策中心
+    # 1. Main Run Entry (RUN METHOD) - Decision Center
     # =================================================================
     async def run(self):
         """
-        根据配置，路由到不同的实验流程。
+        Route to different experimental workflows based on configuration.
         """
         tasks = self.config.get('run_tasks', [])
 
         all_vague_samples = []
         stage1_vanilla_output = []
         if tasks:
-            print("\n===== 开始执行共享的预处理步骤 =====")
+            print("\n===== Starting shared preprocessing steps =====")
             all_vague_samples = await self._get_all_vague_samples()
 
-            # 特殊依赖：setting3依赖于setting1的结果
+            # Special dependency: setting3 depends on setting1 results
             if 'rtg_process' in tasks:
-                print("\n===== [依赖前置] 正在为RtG Process实验准备Stage 1的输入数据... =====")
+                print("\n===== [Dependency Setup] Preparing Stage 1 input data for RtG Process experiment... =====")
                 stage1_vanilla_output, _ = await self._run_stage1_stimulation(all_vague_samples)
 
-        # --- 任务路由 ---
+        # --- Task Routing ---
         if 'vanilla' in tasks:
-            print("\n===== 开始执行 [独立的] Vanilla Pipeline 实验 =====")
+            print("\n===== Starting [Independent] Vanilla Pipeline experiment =====")
             await self.run_vanilla_experiment(all_vague_samples)
 
         if 'rtg_label' in tasks:
-            print("\n===== 开始执行 [独立的] RtG Label Conformity 实验 =====")
+            print("\n===== Starting [Independent] RtG Label Conformity experiment =====")
             await self.run_rtg_label_experiment(all_vague_samples)
 
         if 'rtg_process' in tasks:
-            print("\n===== 开始执行 [独立的] RtG Process Conformity 实验 =====")
+            print("\n===== Starting [Independent] RtG Process Conformity experiment =====")
             await self.run_rtg_process_experiment(stage1_vanilla_output)
 
     # =================================================================
-    # 2. 独立的工作流 (WORKFLOWS)
+    # 2. Independent Workflows (WORKFLOWS)
     # =================================================================
 
     async def run_vanilla_experiment(self, all_vague_samples: List[Dict[str, Any]]):
-        """执行完整的Vanilla Pipeline实验，包含两个阶段。"""
+        """Execute complete Vanilla Pipeline experiment, including two stages."""
         stage1_processed_data, stage1_failed_samples = await self._run_stage1_stimulation(all_vague_samples)
         stage2_processed_data = await self._run_stage2_reflection(stage1_failed_samples)
         self._calculate_final_vanilla_metrics(all_vague_samples, stage1_processed_data, stage2_processed_data)
-        print("\nVanilla Pipeline 所有流程执行完毕。")
+        print("\nVanilla Pipeline all workflows completed.")
 
     async def run_rtg_label_experiment(self, vague_samples: List[Dict[str, Any]]):
-        """执行完整的RtG Label Conformity测试。"""
+        """Execute complete RtG Label Conformity test."""
         situations = self.config.get('rtg_label_settings', {}).get('situations', [])
         if not situations or not vague_samples: return
 
         for situation in situations:
-            print(f"\n--- [RtG Label Test] 正在处理 Situation: {situation} ---")
+            print(f"\n--- [RtG Label Test] Processing Situation: {situation} ---")
             prompts = [self._build_prompt(item, "rtg_label", situation=situation) for item in vague_samples]
             llm_results = await self.llm_handler.batch_query(prompts)
             predictions = [self.evaluator.parse_llm_output(res) for res in llm_results]
             ground_truths = [item['proof_label'] for item in vague_samples]
 
-            print(f"\n--- Situation '{situation}' 评估结果 ---")
+            print(f"\n--- Situation '{situation}' Evaluation Results ---")
             eval_results = self.evaluator.calculate_accuracy(predictions, ground_truths)
             self.data_handler.save_rtg_label_situation_results(eval_results, situation)
-        print("\nRtG Label Conformity 实验执行完毕。")
+        print("\nRtG Label Conformity experiment completed.")
 
     async def run_rtg_process_experiment(self, all_vague_samples: List[Dict[str, Any]]):
-        """执行完整的RtG Process Conformity测试，严格复刻旧版step4,5,6的逻辑。"""
+        """Execute complete RtG Process Conformity test, strictly replicating old step4,5,6 logic."""
         if not all_vague_samples:
-            print("没有模糊样本，跳过RtG Process Conformity测试。")
+            print("No vague samples, skipping RtG Process Conformity test.")
             return
 
-        # === STAGE 1: 生成初始推理 (复刻 step4_settings3.py) ===
-        print(f"\n--- [RtG Process Test - Step 1/3] 正在为 {len(all_vague_samples)} 个样本生成初始推理... ---")
+        # === STAGE 1: Generate initial reasoning (replicating step4_settings3.py) ===
+        print(f"\n--- [RtG Process Test - Step 1/3] Generating initial reasoning for {len(all_vague_samples)} samples... ---")
         step4_prompts = [self._build_prompt(item, "rtg_process_step4") for item in all_vague_samples]
         step4_llm_results = await self.llm_handler.batch_query(step4_prompts)
 
-        # 处理并保存第一阶段的结果
+        # Process and save first stage results
         reflection1_output = []
         step4_predictions = [self.evaluator.parse_llm_output(res) for res in step4_llm_results]
         ground_truths = [item['proof_label'] for item in all_vague_samples]
         for i, item in enumerate(all_vague_samples):
             new_item = item.copy()
             gt, pred = ground_truths[i], step4_predictions[i]
-            new_item["reasoning"] = step4_llm_results[i]  # 保存完整的原始推理
-            # 更新 Perception Type
+            new_item["reasoning"] = step4_llm_results[i]  # Save complete original reasoning
+            # Update Perception Type
             if gt in ["__PROVED__", "__DISPROVED__"]:
                 new_item["Perception Type"] = "True KNOWN" if pred == gt else (
                     "False KNOWN" if pred != "__UNKNOWN__" else "False UNKNOWN")

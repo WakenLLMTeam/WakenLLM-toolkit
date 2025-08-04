@@ -4,11 +4,11 @@ from src.config_loader import load_config
 from src.data_handler import DataHandler
 from src.llm_handler import LLMHandler
 from src.evaluator import Evaluator
-# --- 修正：确保类名与 pipeline.py 文件中的定义完全一致 ---
+# --- Fix: Ensure class name is consistent with the definition in pipeline.py ---
 from src.pipeline import WakenllmPipeline
 
 async def main_async():
-    """所有异步逻辑的真正入口点。"""
+    """The true entry point for all async logic."""
     parser = argparse.ArgumentParser(description="WAKENLLM Toolkit")
     parser.add_argument(
         '--config',
@@ -18,29 +18,29 @@ async def main_async():
     )
     args = parser.parse_args()
 
-    # 1. 加载配置
+    # 1. Load configuration
     config = load_config(args.config)
 
-    # 2. 初始化所有服务模块
+    # 2. Initialize all service modules
     data_handler = DataHandler(config)
     llm_handler = LLMHandler(config)
     evaluator = Evaluator()
 
-    # 3. 组装并启动Pipeline！
+    # 3. Assemble and start the Pipeline!
     pipeline = WakenllmPipeline(config, data_handler, llm_handler, evaluator)
     await pipeline.run()
 
-    print("\n--- 实验流程执行完毕 ---")
+    print("\n--- Experiment workflow completed ---")
 
 def main():
-    """同步的启动器，负责创建和运行事件循环。"""
+    """Synchronous launcher responsible for creating and running the event loop."""
     try:
-        # 这是程序中唯一一处 asyncio.run()
+        # This is the only place in the program where asyncio.run() is used
         asyncio.run(main_async())
     except KeyboardInterrupt:
-        print("\n程序被用户中断。")
+        print("\nProgram interrupted by user.")
     except Exception as e:
-        print(f"\n程序发生未捕获的异常: {e}")
+        print(f"\nUncaught exception in program: {e}")
 
 if __name__ == "__main__":
     main()

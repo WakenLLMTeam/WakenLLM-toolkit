@@ -225,30 +225,26 @@ pyrightconfig.json
 .history
 .ionide
 
-# End of https://www.toptal.com/developers/gitignore/api/python,macos,visualstudiocode
-# 忽略所有由程序生成的数据、结果和日志文件
-# 这些文件不是源代码的一部分，不应该被版本控制
+
 /data/
 /results/
 /logs/
 
-# 忽略包含API密钥等敏感信息的文件
-# 这是保证账户安全的最关键一步！
+
 secrets.yaml
 
-# 忽略Python在运行时生成的缓存文件
+
 __pycache__/
 *.pyc
 
-# 忽略Python虚拟环境文件夹
-# 这个文件夹包含了大量的库文件，每个用户都应该在本地自己创建
+
 .venv/
 venv/
 env/
 
-# 忽略操作系统自动生成的文件 (例如 macOS 的 .DS_Store)
+
 .DS_Store
 
-# 忽略IDE（如VS Code）的配置文件
+
 .vscode/
 .idea/

@@ -8,28 +8,28 @@ import shutil
 import re
 from ruamel.yaml import YAML
 import json
-import pandas as pd  # 引入pandas来创建和显示表格
+import pandas as pd  # Import pandas to create and display tables
 
 # =================================================================
-# 1. 配置 (CONFIGURATION)
+# 1. Configuration (CONFIGURATION)
 # =================================================================
-# --- 路径配置 ---
+# --- Path configuration ---
 PARENT_DIR = pathlib.Path(__file__).resolve().parent
 ORIGINAL_TOOLKIT_PATH = PARENT_DIR.parent / "toolkit"
 NEW_TOOLKIT_PATH = PARENT_DIR
 
-# --- 实验矩阵配置 ---
-# 在这里配置您想运行的所有数据集和任务
-DATASETS_TO_RUN = ["FLD"]  # 您可以加入 "ScienceQA_language_arts", "ScienceQA_phy_bio"
+# --- Experiment matrix configuration ---
+# Configure all datasets and tasks you want to run here
+DATASETS_TO_RUN = ["FLD"]  # You can add "ScienceQA_language_arts", "ScienceQA_phy_bio"
 TASKS_TO_RUN = ["vanilla", "rtg_process", "rtg_label"]
 
-# --- 模型与样本配置 ---
+# --- Model and sample configuration ---
 MODEL_NAME = "qwen2.5-7b-instruct"
-SAMPLE_LIMIT = 50  # 每个数据集取前n个样本进行测试
+SAMPLE_LIMIT = 50  # Take first n samples from each dataset for testing
 
-# --- Python解释器路径 (强制统一环境的关键) ---
-# 请确保这里的路径是您新toolkit虚拟环境中的python解释器
-PYTHON_EXE = "/Users/nianzhen/Desktop/wakenLLM-toolkit/.venv/bin/python3.12"  # <--- 请根据您的实际情况修改
+# --- Python interpreter path (key to forcing unified environment) ---
+# Please ensure this path is the python interpreter in your new toolkit virtual environment
+PYTHON_EXE = "/Users/nianzhen/Desktop/wakenLLM-toolkit/.venv/bin/python3.12"  # <--- Please modify according to your actual situation
 
 
 class bcolors:
@@ -43,14 +43,14 @@ class bcolors:
 
 
 # =================================================================
-# 2. 辅助函数 (HELPER FUNCTIONS)
+# 2. Helper Functions (HELPER FUNCTIONS)
 # =================================================================
 def print_header(title: str) -> None:
     print(f"\n{bcolors.HEADER}{'=' * 26} {title.upper()} {'=' * 26}{bcolors.ENDC}")
 
 
 def get_task_base_dir(dataset_name: str) -> pathlib.Path:
-    """根据数据集名称确定其所在的task目录"""
+    """Determine the task directory based on dataset name"""
     if "ScienceQA" in dataset_name:
         return ORIGINAL_TOOLKIT_PATH / "task3-4"
     else:
@@ -58,12 +58,12 @@ def get_task_base_dir(dataset_name: str) -> pathlib.Path:
 
 
 def prepare_test_data(dataset_name: str, base_dir: pathlib.Path) -> None:
-    """为指定的数据集准备测试数据文件"""
+    """Prepare test data files for the specified dataset"""
     test_dataset_name = f"{dataset_name}_test"
     print_header(f"Preparing Test Data for '{dataset_name}' (limit: {SAMPLE_LIMIT} samples)")
     original_data_path = base_dir / f"{dataset_name}.json"
     if not original_data_path.exists():
-        print(f"{bcolors.WARNING}⚠️  原始数据集未找到: {original_data_path}，跳过...{bcolors.ENDC}")
+        print(f"{bcolors.WARNING}⚠️  Original dataset not found: {original_data_path}, skipping...{bcolors.ENDC}")
         raise FileNotFoundError
     with open(original_data_path, 'r', encoding='utf-8') as f:
         full_data = json.load(f)
@@ -72,7 +72,7 @@ def prepare_test_data(dataset_name: str, base_dir: pathlib.Path) -> None:
     test_data_path_old = base_dir / f"{test_dataset_name}.json"
     test_data_path_new = NEW_TOOLKIT_PATH / "data" / f"{test_dataset_name}.json"
 
-    test_data_path_new.parent.mkdir(exist_ok=True)  # 确保新toolkit的data目录存在
+    test_data_path_new.parent.mkdir(exist_ok=True)  # Ensure new toolkit's data directory exists
 
     with open(test_data_path_old, 'w', encoding='utf-8') as f: json.dump(test_data, f, indent=2)
     with open(test_data_path_new, 'w', encoding='utf-8') as f: json.dump(test_data, f, indent=2)
@@ -80,7 +80,7 @@ def prepare_test_data(dataset_name: str, base_dir: pathlib.Path) -> None:
 
 
 def run_command_stream(cmd, cwd: pathlib.Path, log_path: pathlib.Path, mode="w") -> str:
-    """执行命令并流式传输输出，支持写入(w)或追加(a)模式"""
+    """Execute command and stream output, supporting write(w) or append(a) mode"""
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
     print(f"{bcolors.OKCYAN}> Executing in '{cwd}': {' '.join(cmd)}{bcolors.ENDC}")
@@ -112,7 +112,7 @@ def clean_directories() -> None:
         if path.exists(): shutil.rmtree(path, ignore_errors=True)
         path.mkdir(parents=True, exist_ok=True)
 
-    # 清理旧的顶层日志
+    # Clean old top-level logs
     if (NEW_TOOLKIT_PATH / "run.log").exists():
         (NEW_TOOLKIT_PATH / "run.log").unlink()
 
@@ -120,7 +120,7 @@ def clean_directories() -> None:
 
 
 def extract_metrics(log_text: str, toolkit_type: str, task_name: str) -> dict:
-    """从日志文本中提取所有关键指标"""
+    """Extract all key metrics from log text"""
     metrics = {"TCR¹": "N/A", "TCR²": "N/A", "OCR": "N/A", "RtG_Process": "N/A", "RtG_Label": "N/A"}
 
     if toolkit_type == 'new':
@@ -136,7 +136,7 @@ def extract_metrics(log_text: str, toolkit_type: str, task_name: str) -> dict:
             if match: metrics["RtG_Process"] = f"{float(match.group(1)):.2f}%"
             patterns = {}
         elif task_name == 'rtg_label':
-            # 提取所有情境的平均准确率
+            # Extract average accuracy across all situations
             accuracies = re.findall(r"--- Situation '.*?' 评估结果 ---\s*.*?准确率:\s*([\d.]+)%", log_text, re.DOTALL)
             if accuracies:
                 avg_acc = sum(float(acc) for acc in accuracies) / len(accuracies)
@@ -149,12 +149,12 @@ def extract_metrics(log_text: str, toolkit_type: str, task_name: str) -> dict:
                 "TCR²": re.compile(r"Start Step 5\s*.*?准确率: ([\d.]+)%", re.DOTALL),
             }
         elif task_name == 'rtg_process':
-            # 旧版的rtg_process最终准确率在step6的日志里
+            # Old version's rtg_process final accuracy is in step6 logs
             match = re.search(r"Start Step 6[\s\S]*?准确率: ([\d.]+)%", log_text, re.DOTALL)
             if match: metrics["RtG_Process"] = f"{float(match.group(1)):.2f}%"
             patterns = {}
         elif task_name == 'rtg_label':
-            # 旧版的rtg_label需要从多个step5的日志中提取并平均
+            # Old version's rtg_label needs to extract and average from multiple step5 logs
             accuracies = re.findall(r"Start Step 5[\s\S]*?准确率: ([\d.]+)%", log_text, re.DOTALL)
             if accuracies:
                 avg_acc = sum(float(acc) for acc in accuracies) / len(accuracies)
@@ -170,10 +170,10 @@ def extract_metrics(log_text: str, toolkit_type: str, task_name: str) -> dict:
 
 
 def run_old_toolkit(dataset_name: str, task_name: str, base_dir: pathlib.Path) -> str:
-    """根据任务名称，在统一环境下运行旧toolkit的相应流程"""
+    """Run the corresponding workflow of the old toolkit in a unified environment based on task name"""
     print_header(f"Running OLD toolkit for: {dataset_name} / {task_name}")
     log_path = base_dir / "run.log"
-    if log_path.exists(): log_path.unlink()  # 每次都创建新日志
+    if log_path.exists(): log_path.unlink()  # Create new log each time
 
     test_dataset_name = f"{dataset_name}_test"
 
@@ -187,7 +187,7 @@ def run_old_toolkit(dataset_name: str, task_name: str, base_dir: pathlib.Path) -
             run_command_stream(cmd, base_dir, log_path, mode="a")
 
     elif task_name == "rtg_process":
-        # 预处理是共享的，需要先运行
+        # Preprocessing is shared, need to run first
         pre_scripts = ["step1.py", "step2.py", "step3.py"]
         for i, script in enumerate(pre_scripts):
             print(f"\n--- [RtG_Process Pre-req] Running Step {i + 1}/{len(pre_scripts)}: {script} ---")
@@ -196,7 +196,7 @@ def run_old_toolkit(dataset_name: str, task_name: str, base_dir: pathlib.Path) -
                 cmd.extend(["--max_workers", "5"])
             run_command_stream(cmd, base_dir, log_path, mode="a")
 
-        # 运行rtg_process的核心脚本
+        # Run rtg_process core scripts
         scripts = ["step4_settings3.py", "step5_settings3.py", "step6_settings3.py"]
         for i, script in enumerate(scripts):
             print(f"\n--- [RtG_Process] Running Step {i + 1}/{len(scripts)}: {script} ---")
@@ -204,7 +204,7 @@ def run_old_toolkit(dataset_name: str, task_name: str, base_dir: pathlib.Path) -
             run_command_stream(cmd, base_dir, log_path, mode="a")
 
     elif task_name == "rtg_label":
-        # 预处理是共享的，需要先运行
+        # Preprocessing is shared, need to run first
         pre_scripts = ["step1.py", "step2.py", "step3.py"]
         for i, script in enumerate(pre_scripts):
             print(f"\n--- [RtG_Label Pre-req] Running Step {i + 1}/{len(pre_scripts)}: {script} ---")
@@ -213,7 +213,7 @@ def run_old_toolkit(dataset_name: str, task_name: str, base_dir: pathlib.Path) -
                 cmd.extend(["--max_workers", "5"])
             run_command_stream(cmd, base_dir, log_path, mode="a")
 
-        # 运行rtg_label的核心脚本，遍历所有情境
+        # Run rtg_label core scripts, iterate through all situations
         situations = ["All_Wrong", "2Over3_Wrong", "Half_Wrong", "All_Right"]
         for situation in situations:
             print(f"\n--- [RtG_Label] Processing Situation: {situation} ---")
@@ -230,7 +230,7 @@ def run_old_toolkit(dataset_name: str, task_name: str, base_dir: pathlib.Path) -
 
 
 def run_new_toolkit(dataset_name: str, task_name: str) -> str:
-    """根据任务名称，配置并运行新toolkit"""
+    """Configure and run new toolkit based on task name"""
     print_header(f"Running NEW toolkit for: {dataset_name} / {task_name}")
     cfg_path = NEW_TOOLKIT_PATH / "configs" / "experiment.yaml"
     log_path = NEW_TOOLKIT_PATH / "run.log"
@@ -254,25 +254,25 @@ def run_new_toolkit(dataset_name: str, task_name: str) -> str:
 
 
 # =================================================================
-# 3. 主流程 (MAIN WORKFLOW)
+# 3. Main Workflow (MAIN WORKFLOW)
 # =================================================================
 def main() -> None:
-    # 清理工作区
+    # Clean workspace
     clean_directories()
 
-    # 用于存储所有结果的列表
+    # List to store all results
     results_summary = []
 
-    # --- 主循环：遍历所有数据集和任务 ---
+    # --- Main loop: iterate through all datasets and tasks ---
     for dataset in DATASETS_TO_RUN:
         task_base_dir = get_task_base_dir(dataset)
         try:
             prepare_test_data(dataset, task_base_dir)
         except FileNotFoundError:
-            continue  # 如果原始数据文件找不到，就跳过这个数据集
+            continue  # Skip this dataset if original data file not found
 
         for task in TASKS_TO_RUN:
-            # 运行旧版
+            # Run old version
             old_log = run_old_toolkit(dataset, task, task_base_dir)
             old_metrics = extract_metrics(old_log, 'old', task)
             old_metrics["Toolkit"] = "Old"
@@ -280,7 +280,7 @@ def main() -> None:
             old_metrics["Task"] = task
             results_summary.append(old_metrics)
 
-            # 运行新版
+            # Run new version
             new_log = run_new_toolkit(dataset, task)
             new_metrics = extract_metrics(new_log, 'new', task)
             new_metrics["Toolkit"] = "New"
@@ -288,16 +288,16 @@ def main() -> None:
             new_metrics["Task"] = task
             results_summary.append(new_metrics)
 
-    # --- 生成最终报告 ---
+    # --- Generate final report ---
     print_header("Final Comprehensive Report")
     if not results_summary:
         print("No results were generated.")
         return
 
-    # 使用pandas创建漂亮的表格
+    # Use pandas to create beautiful tables
     df = pd.DataFrame(results_summary)
 
-    # 重新排列和填充列，以获得最佳的可读性
+    # Rearrange and fill columns for optimal readability
     display_columns = ["Dataset", "Task", "Toolkit", "TCR¹", "TCR²", "OCR", "RtG_Process", "RtG_Label"]
     df_display = pd.DataFrame(columns=display_columns)
     for col in display_columns:
@@ -310,10 +310,10 @@ def main() -> None:
 
     print(df_display.to_string())
 
-    # --- 将报告保存到文件 ---
+    # --- Save report to file ---
     report_path = PARENT_DIR / "final_comparison_report.csv"
     df_display.to_csv(report_path, index=False)
-    print(f"\n{bcolors.OKGREEN}{bcolors.BOLD}✅ 报告已保存到: {report_path}{bcolors.ENDC}")
+    print(f"\n{bcolors.OKGREEN}{bcolors.BOLD}✅ Report saved to: {report_path}{bcolors.ENDC}")
 
 
 if __name__ == "__main__":

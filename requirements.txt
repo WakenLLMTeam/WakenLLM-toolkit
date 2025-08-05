@@ -32,5 +32,5 @@ six==1.17.0
 svgwrite==1.4.3
 Tree==0.2.4
 tzdata==2025.2
-urllib3==2.3.0
+urllib3==2.5.0
 yarl==1.18.3

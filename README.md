@@ -218,7 +218,7 @@ Ensure the downloaded files are named to match the `dataset_name` used in the co
 
 ## 🙏 Acknowledgements
 
-We thank the creators of the datasets used in our study. This work also benefited from open-source libraries such as PyTorch and Hugging Face Transformers. We sincerely thank Hong Kong University of Science and Technology(Guangzhou)，University of Pennsylvania Huazhong University of Science and Technolog，Nanjing University of Posts and Telecommunications and Hong Kong Polytechnic University for providing a supportive academic environment and the necessary resources to carry out this research.
+We thank the creators of the datasets used in our study. This work also benefited from open-source libraries such as PyTorch and Hugging Face Transformers. We sincerely thank Hong Kong University of Science and Technology(Guangzhou), University of Pennsylvania, Huazhong University of Science and Technology, Nanjing University of Posts and Telecommunications and Hong Kong Polytechnic University for providing a supportive academic environment and the necessary resources to carry out this research.
 
 ## 📜 Citation
 

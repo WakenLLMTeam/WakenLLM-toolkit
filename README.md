@@ -68,7 +68,66 @@ Key parameters include:
 * `dataset_name`: The dataset to use (`FLD`, `FOLIO`, `ScienceQA_phy_bio`, etc.).
 * `run_tasks`: A list of experiments to run. Options are: `"vanilla"`, `"rtg_label"`, `"rtg_process"`.
 
+## 🛠️ Usage with Makefile (Recommended)
+
+For a streamlined and reproducible workflow, this toolkit includes a powerful `Makefile` that automates all common tasks.
+
+**1. See all available commands:**
+Simply type `make` in your terminal to see a list of all commands and options.
+```bash
+make
+````
+
+**2. Setup Environment and Data:**
+This command will install all dependencies. The second command will download available datasets and provide instructions for those that require manual download.
+
+```bash
+make setup
+make download-data
+```
+
+**3. Run Experiments:**
+You can easily run any experiment on any dataset with a simple command. The `Makefile` handles the configuration changes for you.
+
+  * **Run the Vanilla Pipeline on the default FLD dataset:**
+
+    ```bash
+    make run-vanilla
+    ```
+
+  * **Run all three pipelines on the FOLIO dataset using the `qwen2.5-7b-instruct` model:**
+
+    ```bash
+    make run-all DATASET="FOLIO" MODEL="qwen2.5-7b-instruct"
+    ```
+
+  * **Run an experiment on a small subset for quick debugging (e.g., first 50 samples of FOLIO):**
+
+    ```bash
+    # Step 1: Create the subset file (e.g., FOLIO_subset_50.json)
+    python scripts/prepare_subset.py --dataset FOLIO --samples 50
+
+    # Step 2: Run the desired task on this new subset
+    make run-vanilla DATASET="FOLIO_subset_50"
+    ```
+
+**4. Generate Visualizations:**
+After running one or more experiments, generate a CSV summary and charts. The script will automatically find all summary files in the `results` directory.
+
+```bash
+make visualize
+```
+
+**5. Clean Up:**
+To remove all generated results, logs, and cache files, run:
+
+```bash
+make clean
+```
+
 ## 🚀 Usage Examples
+For a streamlined and reproducible workflow, this toolkit includes a powerful `Makefile` that automates all common tasks.
+
 
 ### Running an Experiment
 
@@ -179,5 +238,4 @@ If you use this toolkit or the WAKENLLM framework in your research, please cite 
 ```
 
 ## 📄 License
-
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.

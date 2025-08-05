@@ -38,6 +38,7 @@ help:
 	@echo "  run-rtg-label      Run the RtG Label Conformity experiment on the $(DATASET) dataset."
 	@echo "  run-rtg-process    Run the RtG Process Conformity experiment on the $(DATASET) dataset."
 	@echo "  run-all            Run all three experiments sequentially on the $(DATASET) dataset."
+	@echo "  run-subset         Run the given task in one subset (make run-subset DATASET=FLD SAMPLES=50 TASK=vanilla)"
 	@echo "  clean              Remove all generated files (results, logs, caches)."
 	@echo ""
 	@echo "Options:"
@@ -66,6 +67,27 @@ download-data:
 	fi
 	@echo "--> Dataset preparation finished."
 
+.PHONY: run-subset
+run-subset:
+	@# 检查 SAMPLES 变量是否被定义
+	@if [ -z "$(SAMPLES)" ]; then \
+		echo "错误: 请指定样本数量. 用法: make run-subset DATASET=<name> SAMPLES=<number> TASK=<task_name>"; \
+		exit 1; \
+	fi
+	@# 检查 TASK 变量是否被定义
+	@if [ -z "$(TASK)" ]; then \
+		echo "错误: 请指定要运行的任务. 用法: make run-subset ... TASK=<vanilla|rtg_label|rtg_process>"; \
+		exit 1; \
+	fi
+	@echo "--> 第一步: 准备一个包含 $(SAMPLES) 条样本的 '$(DATASET)' 数据子集..."
+	$(PYTHON) scripts/prepare_subset.py --dataset $(DATASET) --samples $(SAMPLES)
+
+	@echo "\n--> 第二步: 运行实验..."
+	$(eval SUBSET_NAME := $(DATASET)_subset_$(SAMPLES))
+	$(eval ORIGINAL_DATASET := $(DATASET)) # 保存原始的DATASET值
+	@# 临时将DATASET变量设置为子集的名称，并运行实验
+	$(MAKE) run-vanilla DATASET=$(SUBSET_NAME) MODEL=$(MODEL)
+	@# 这里我们调用已有的 run-vanilla, run-rtg-label 等目标，但传入了新的DATASET值
 # --- Experiment Execution Engine (Upgraded) ---
 # This version uses a secure temporary file for configs and timestamped logs.
 # Arguments: 1=task_name

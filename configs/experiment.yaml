@@ -1,6 +1,6 @@
 # Basic experiment settings
 experiment_name: "qwen_on_fld_step1"
-model_name: "qwen2.5-7b-instruct"
+model_name: "gpt-4o"
 dataset_name: "FLD"
 max_workers: 5
 

@@ -146,10 +146,6 @@ class WakenllmPipeline:
         verifiable_errors, model_confusion_errors = await asyncio.gather(task1, task2)
         all_vague_samples = verifiable_errors + model_confusion_errors
         print(f"\n预处理完成，共找到 {len(all_vague_samples)} 个需要进行处理的模糊感知样本。")
-        print("--- [VERIFICATION] Saving preprocessing result for comparison... ---")
-        with open("results/all_vague_samples_NEW.json", "w", encoding="utf-8") as f:
-            json.dump(all_vague_samples, f, indent=2)
-        # --------------------------------
         return all_vague_samples
 
     async def _identify_verifiable_errors(self) -> List[Dict[str, Any]]:
@@ -299,7 +295,6 @@ class WakenllmPipeline:
     def _build_step1_prompt(self, element: Dict[str, Any]) -> List[Dict[str, str]]:
         hypothesis = element["Conclusion"]
         facts = element["Facts"]
-        # 最终修正版：与旧脚本中的原始字符串实现像素级匹配，包括那个双空格
         content = (
             f"Here is the Hypothesis:\n{hypothesis}\n"
             f"Now These are the 'facts':\n{facts}\n"

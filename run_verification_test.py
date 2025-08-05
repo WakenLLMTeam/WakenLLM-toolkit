@@ -29,7 +29,7 @@ SAMPLE_LIMIT = 50  # Take first n samples from each dataset for testing
 
 # --- Python interpreter path (key to forcing unified environment) ---
 # Please ensure this path is the python interpreter in your new toolkit virtual environment
-PYTHON_EXE = "/Users/nianzhen/Desktop/wakenLLM-toolkit/.venv/bin/python3.12"  # <--- Please modify according to your actual situation
+PYTHON_EXE = sys.executable
 
 
 class bcolors:

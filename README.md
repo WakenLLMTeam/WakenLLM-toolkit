@@ -57,7 +57,7 @@ This project requires API keys to access to LLMs.
     ```bash
     cp secrets.template.yaml secrets.yaml
     ```
-2.  Open `secrets.yaml` and fill in your own API key and base URL. This file is ignored by Git and will not be uploaded to prevent key leakage.
+2.  Open `secrets.yaml` and fill in your own API key and base URL.
 
 ### 2. Experiment Parameters
 

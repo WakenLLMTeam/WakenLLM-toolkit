@@ -229,7 +229,7 @@ pyrightconfig.json
 /data/
 /results/
 /logs/
-
+docs/design_spec.md
 
 secrets.yaml
 

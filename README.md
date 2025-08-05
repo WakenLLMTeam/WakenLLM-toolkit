@@ -53,7 +53,11 @@ Before running any experiments, you need to configure your API keys and experime
 
 This project requires API keys to access to LLMs.
 
-1.  Open `secrets.yaml` and fill in your own API key and base URL.
+1.  Copy the template file `secrets.template.yaml` to a new file named `secrets.yaml`:
+    ```bash
+    cp secrets.template.yaml secrets.yaml
+    ```
+2.  Open `secrets.yaml` and fill in your own API key and base URL.
 
 ### 2. Experiment Parameters
 

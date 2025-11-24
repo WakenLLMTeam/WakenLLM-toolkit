@@ -5,7 +5,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2507.16199-b31b1b.svg)](https://arxiv.org/abs/2507.16199)
 
 <!-- This repository contains the official implementation for the arxiv preprint paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**. -->
-This repository contains the implementation for the paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**.
+This repository contains the implementation for the paper: **"Awake LLMs: Evaluating and Exposing LLM Reasoning Potential via Fine-Grained Pipelines"**.
 
 This toolkit provides a modular and extensible framework to reproduce all experiments in the paper. It facilitates the identification of the "Vague Perception" phenomenon and the execution of the multi-stage stimulation and reflection pipelines.
 

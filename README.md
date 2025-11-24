@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
-[![arXiv](https://img.shields.io/badge/arXiv-2507.16199-b31b1b.svg)](https://arxiv.org/abs/2507.16199)
+<!-- [![arXiv](https://img.shields.io/badge/arXiv-2507.16199-b31b1b.svg)](https://arxiv.org/abs/2507.16199) -->
 
 <!-- This repository contains the official implementation for the arxiv preprint paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**. -->
 This repository contains the implementation for the paper: **"Awake LLMs: Evaluating and Exposing LLM Reasoning Potential via Fine-Grained Pipelines"**.

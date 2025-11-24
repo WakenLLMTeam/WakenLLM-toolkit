@@ -4,7 +4,8 @@
 ![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)
 [![arXiv](https://img.shields.io/badge/arXiv-2507.16199-b31b1b.svg)](https://arxiv.org/abs/2507.16199)
 
-This repository contains the official implementation for the arxiv preprint paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**.
+<!-- This repository contains the official implementation for the arxiv preprint paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**. -->
+This repository contains the implementation for the paper: **"WakenLLM: Evaluating Reasoning Potential and Stability in LLMs via Fine-Grained Benchmarking"**.
 
 This toolkit provides a modular and extensible framework to reproduce all experiments in the paper. It facilitates the identification of the "Vague Perception" phenomenon and the execution of the multi-stage stimulation and reflection pipelines.
 
@@ -29,7 +30,8 @@ Implements the full end-to-end workflows for the following three settings:
 
 1.  **Clone the repository:**
     ```bash
-    git clone [https://github.com/WakenLLMTeam/WakenLLM-toolkit.git](https://github.com/WakenLLMTeam/WakenLLM-toolkit.git)
+    <!-- git clone [https://github.com/WakenLLMTeam/WakenLLM-toolkit.git](https://github.com/WakenLLMTeam/WakenLLM-toolkit.git) -->
+    git clone <repository_url>
     cd WakenLLM-toolkit
     ```
 
@@ -190,10 +192,14 @@ Inside this directory, you will find:
 
 The toolkit expects the raw dataset files to be placed in the `data/` directory. Please download the datasets from their original sources and place them accordingly.
 
-* [**FLD**](https://github.com/hitachi-nlp/FLD): A benchmark dataset for evaluating logical reasoning and faithfulness in natural language processing tasks, focusing on fine-grained logical deduction and verification.
+<!-- * [**FLD**](https://github.com/hitachi-nlp/FLD): A benchmark dataset for evaluating logical reasoning and faithfulness in natural language processing tasks, focusing on fine-grained logical deduction and verification.
 
 * [**ScienceQA**](https://github.com/lupantech/ScienceQA): A large-scale, multi-modal dataset for science question answering. In this work, we only select the pure language samples.
-* [**FOLIO**](https://github.com/Yifan-Song793/FOLIO): A benchmark for evaluating faithfulness in logical reasoning over text.
+* [**FOLIO**](https://github.com/Yifan-Song793/FOLIO): A benchmark for evaluating faithfulness in logical reasoning over text. -->
+* **FLD**: A benchmark dataset for evaluating logical reasoning and faithfulness in natural language processing tasks, focusing on fine-grained logical deduction and verification.
+
+* **ScienceQA**: A large-scale, multi-modal dataset for science question answering. In this work, we only select the pure language samples.
+* **FOLIO**: A benchmark for evaluating faithfulness in logical reasoning over text.
 
 Ensure the downloaded files are named to match the `dataset_name` used in the configuration (e.g., `data/FOLIO.json`).
 
@@ -220,7 +226,7 @@ Ensure the downloaded files are named to match the `dataset_name` used in the co
 
 We thank the creators of the datasets used in our study. This work also benefited from open-source libraries such as PyTorch and Hugging Face Transformers. We sincerely thank Hong Kong University of Science and Technology(Guangzhou), University of Pennsylvania, Huazhong University of Science and Technology, Nanjing University of Posts and Telecommunications and Hong Kong Polytechnic University for providing a supportive academic environment and the necessary resources to carry out this research. -->
 
-## 📜 Citation
+<!-- ## 📜 Citation
 
 If you use this toolkit or the WAKENLLM framework in your research, please cite our paper:
 
@@ -238,4 +244,4 @@ If you use this toolkit or the WAKENLLM framework in your research, please cite 
 ```
 
 ## 📄 License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details. -->

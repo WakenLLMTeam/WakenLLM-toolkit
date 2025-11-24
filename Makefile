@@ -4,7 +4,7 @@
 # This version incorporates advanced features for robustness, safety, and
 # meticulous logging, suitable for rigorous academic and production use.
 #
-# @author: Junqi Yang
+# <!-- @author: Junqi Yang -->
 # @version: 2.0.0
 # ==============================================================================
 
@@ -61,7 +61,8 @@ download-data:
 	@echo "NOTE: Per its license, the FLD dataset must be downloaded manually from its source."
 	@if [ ! -f "$(DATA_DIR)/FOLIO.json" ]; then \
 		echo "Downloading FOLIO dataset..."; \
-		wget -q --show-progress -O $(DATA_DIR)/FOLIO.json https://raw.githubusercontent.com/Yifan-Song793/FOLIO/main/data/folio.json; \
+		# wget -q --show-progress -O $(DATA_DIR)/FOLIO.json https://raw.githubusercontent.com/Yifan-Song793/FOLIO/main/data/folio.json; \
+		echo "Please download FOLIO dataset manually from its official repository."; \
 	else \
 		echo "FOLIO dataset already exists. Skipping download."; \
 	fi

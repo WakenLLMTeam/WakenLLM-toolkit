@@ -1,0 +1,4 @@
+# comfy_ppt_agent（与 ComfyUI 服务通信 + 写 pptx）
+requests>=2.28.0
+python-pptx>=0.6.21
+Pillow>=10.0.0

@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+ComfyUI/.venv/
+ComfyUI/output/
+ComfyUI/temp/
+ComfyUI/user/
+output/
+*.pptx
+*.png
+*.jpg

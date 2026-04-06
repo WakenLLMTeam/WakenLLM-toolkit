@@ -1,0 +1,125 @@
+{
+  "title": "从 L2 到 L3：自动驾驶能力演变",
+  "subtitle": "模块拆解 · 差异对齐 · 路线可视化",
+  "aspect_ratio": "16:9",
+  "theme": {
+    "accent_rgb": [0, 82, 204],
+    "body_rgb": [55, 65, 81],
+    "title_rgb": [17, 24, 39],
+    "author": "summary-ppt-editable · L2→L3 示例"
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "title",
+      "title": "从 L2 到 L3：自动驾驶能力演变",
+      "subtitle": "文本：分模块讲清楚 · 配图：与术语、顺序严格对齐"
+    },
+    {
+      "slide_number": 2,
+      "type": "section",
+      "title": "叙事结构：先模块，再差异，最后路线"
+    },
+    {
+      "slide_number": 3,
+      "type": "content",
+      "title": "L2：驾驶员监督下的组合辅助驾驶",
+      "modules": [
+        {
+          "heading": "环境感知与融合",
+          "bullets": [
+            "多传感器（摄像头、毫米波雷达等）目标检测与车道线估计",
+            "短时预测与置信度管理，为纵向/横向控制提供输入"
+          ]
+        },
+        {
+          "heading": "规划与控制",
+          "bullets": [
+            "ACC、LKA/LCC 等在有限场景内辅助跟车与居中",
+            "控制仍以驾驶员可随时接管为前提"
+          ]
+        },
+        {
+          "heading": "人机交互与责任",
+          "bullets": [
+            "驾驶员为安全责任主体，需监控路况并接管",
+            "系统以提示、降级为主，强调「辅助」而非「代驾」"
+          ]
+        }
+      ],
+      "notes": "讲解时强调：L2 是「减轻负担」，不是「替代注意」。"
+    },
+    {
+      "slide_number": 4,
+      "type": "content",
+      "title": "L3：ODD 内的条件自动驾驶",
+      "modules": [
+        {
+          "heading": "感知与 ODD 管理",
+          "bullets": [
+            "在限定运行设计域（ODD）内，系统承担持续驾驶任务",
+            "需监测是否仍在 ODD 内，并触发接管请求（time-to-takeover）"
+          ]
+        },
+        {
+          "heading": "规划与最小风险策略",
+          "bullets": [
+            "在 ODD 内完成纵向/横向决策；接近边界时规划安全退出或提示接管",
+            "异常时趋向最小风险状态（靠边、减速等，依法规与架构）"
+          ]
+        },
+        {
+          "heading": "责任转移与冗余",
+          "bullets": [
+            "在有效激活且 ODD 满足时，责任主体向系统侧过渡（依地区法规）",
+            "对传感器/计算/电源等提出更高冗余与监控要求"
+          ]
+        }
+      ],
+      "notes": "与上一页术语对齐：同一批模块名，便于听众对照。"
+    },
+    {
+      "slide_number": 5,
+      "type": "content",
+      "title": "L2 与 L3：三个对齐维度",
+      "bullets": [
+        "责任：L2 以驾驶员为主；L3 在 ODD 内由系统执行驾驶任务（接管机制是关键）",
+        "ODD：L3 必须显式定义可运行范围；L2 辅助功能通常分散在可激活场景内",
+        "系统架构：L3 对冗余、诊断、HMI 接管链路的要求显著高于典型 L2"
+      ],
+      "notes": "纯文本对齐页；配图集中在下一页底栏时间线，术语与图中阶段一致。"
+    },
+    {
+      "slide_number": 6,
+      "type": "content",
+      "title": "能力路线：从 L2 到 L3 的递进关系",
+      "modules": [
+        {
+          "heading": "文本与图如何对齐（制作规范）",
+          "bullets": [
+            "图中阶段名称、箭头顺序须与本页及前两页模块叙事一致",
+            "不在图内写长段落；结论与数字以左侧可编辑文本为准",
+            "配图仅承担「路线/结构」表达，避免与正文术语冲突"
+          ]
+        }
+      ],
+      "figure": {
+        "position": "bottom",
+        "caption": "L2 → 过渡（ODD/接管成熟）→ L3：与 scripts/render_l2_l3_timeline_png.py 导出图一致",
+        "image_path": "",
+        "placeholder_text": "将 timeline_l2_l3.png 路径写入 figure.image_path\n（与图中标签：L2 / ODD·接管 / L3 对齐）"
+      },
+      "notes": "演示脚本会生成 timeline PNG 并自动填入路径。"
+    },
+    {
+      "slide_number": 7,
+      "type": "summary",
+      "title": "小结",
+      "bullets": [
+        "L2：组合辅助，驾驶员负责监督与接管",
+        "L3：在 ODD 内由系统执行驾驶任务，接管与冗余是分水岭",
+        "交付物：可编辑正文 + 与术语一致的路线/对比图，二者分工明确、互相对齐"
+      ]
+    }
+  ]
+}

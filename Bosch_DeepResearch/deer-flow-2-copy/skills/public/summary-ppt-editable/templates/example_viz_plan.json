@@ -1,0 +1,191 @@
+{
+  "title": "从 L2 到 L3：自动驾驶能力演变",
+  "subtitle": "系统模块 · 核心差异 · 演变路线图",
+  "aspect_ratio": "16:9",
+  "theme": {
+    "accent_rgb": [26, 86, 219],
+    "body_rgb": [71, 85, 105],
+    "title_rgb": [17, 24, 39],
+    "author": "summary-ppt-editable · viz 示例"
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "title",
+      "title": "从 L2 到 L3：自动驾驶能力演变",
+      "subtitle": "build_deck.py 自动生成图文并茂 PPT 示例"
+    },
+    {
+      "slide_number": 2,
+      "type": "section",
+      "title": "Part 1：系统模块链"
+    },
+    {
+      "slide_number": 3,
+      "type": "content",
+      "title": "ADAS 感知–决策–执行模块链",
+      "bullets": [
+        "L2 与 L3 共享相同的物理模块链：传感器 → 感知 → 预测 → 规划 → 控制",
+        "升级体现在每个模块的容错要求与 ODD 边界管理能力上",
+        "L3 在感知与规划层引入 ODD 监测，需随时准备触发接管请求"
+      ],
+      "figure": {
+        "position": "bottom",
+        "caption": "ADAS / AD 系统五模块链（L2 与 L3 共享架构，能力要求不同）",
+        "viz": {
+          "type": "pipeline",
+          "title": "ADAS 系统模块链",
+          "arrow_label": "数据流",
+          "stages": [
+            {"label": "原始传感器", "sublabel": "Camera · Radar · LiDAR", "color": "#dbeafe"},
+            {"label": "感知融合",   "sublabel": "目标检测 · 车道线", "color": "#dcfce7"},
+            {"label": "预测",       "sublabel": "轨迹 · 意图", "color": "#fef9c3"},
+            {"label": "规划决策",   "sublabel": "行为 · 路径规划", "color": "#fce7f3"},
+            {"label": "执行控制",   "sublabel": "纵向 · 横向", "color": "#ede9fe"}
+          ]
+        }
+      },
+      "notes": "强调：L3 在感知层新增 ODD 边界检测，在规划层新增最小风险策略分支。"
+    },
+    {
+      "slide_number": 4,
+      "type": "section",
+      "title": "Part 2：L2 与 L3 核心差异"
+    },
+    {
+      "slide_number": 5,
+      "type": "content",
+      "title": "L2 vs L3：五维能力对比",
+      "bullets": [
+        "责任主体是最关键的分水岭：L2 驾驶员负责，L3 ODD 内系统负责",
+        "接管机制从「随时可接管」变为「time-to-takeover + 最小风险策略」",
+        "法规要求：L3 受 UN R157 等强制约束，L2 无强制法规"
+      ],
+      "figure": {
+        "position": "bottom",
+        "caption": "L2 / L2+ / L3 五维能力矩阵（蓝色列为 L3 重点差异项）",
+        "viz": {
+          "type": "comparison",
+          "title": "L2 / L2+ / L3 能力对比矩阵",
+          "highlight_col": 2,
+          "rows": ["感知责任", "规划层级", "接管机制", "系统冗余", "法规依据"],
+          "cols": ["L2 辅助", "L2+ 扩展", "L3 条件自动"],
+          "cells": [
+            ["驾驶员为主",    "驾驶员为主",    "ODD 内系统"],
+            ["ACC + LKA",   "NOA 高速融合",  "完整纵横向决策"],
+            ["随时可接管",    "随时可接管",    "time-to-takeover"],
+            ["单点容错",      "部分冗余",      "多重冗余"],
+            ["无强制法规",    "无强制法规",    "UN R157 / 地区法规"]
+          ]
+        }
+      }
+    },
+    {
+      "slide_number": 6,
+      "type": "section",
+      "title": "Part 3：L3 内部决策流程"
+    },
+    {
+      "slide_number": 7,
+      "type": "content",
+      "title": "L3 ODD 边界决策流程",
+      "modules": [
+        {
+          "heading": "ODD 判断是核心分叉点",
+          "bullets": [
+            "系统持续监测当前场景是否仍在 ODD 内",
+            "ODD 内：执行完整纵横向决策并输出控制指令",
+            "ODD 外：触发接管请求 → 倒计时 → 最小风险状态"
+          ]
+        },
+        {
+          "heading": "最小风险策略（MRC）",
+          "bullets": [
+            "驾驶员未在 time-to-takeover 内接管时激活",
+            "执行安全降级：减速、靠边、危险警示灯"
+          ]
+        }
+      ],
+      "figure": {
+        "position": "right",
+        "caption": "L3 感知–ODD判断–规划决策流程图",
+        "viz": {
+          "type": "flowchart",
+          "title": "L3 决策流程",
+          "layout": "TB",
+          "nodes": [
+            {"id": "s",   "label": "感知融合输入",   "shape": "rect",    "color": "#dbeafe"},
+            {"id": "odd", "label": "ODD 边界判断",    "shape": "diamond", "color": "#fef9c3"},
+            {"id": "plan","label": "正常路径规划",    "shape": "rect",    "color": "#dcfce7"},
+            {"id": "tok", "label": "接管请求 (TOR)",  "shape": "rect",    "color": "#fee2e2"},
+            {"id": "mrc", "label": "最小风险策略",    "shape": "rounded", "color": "#fce7f3"},
+            {"id": "ctrl","label": "执行控制输出",    "shape": "rect",    "color": "#ede9fe"}
+          ],
+          "edges": [
+            {"from": "s",   "to": "odd"},
+            {"from": "odd", "to": "plan", "label": "ODD 内"},
+            {"from": "odd", "to": "tok",  "label": "ODD 外"},
+            {"from": "tok", "to": "mrc",  "label": "超时未接管"},
+            {"from": "plan","to": "ctrl"},
+            {"from": "mrc", "to": "ctrl"}
+          ]
+        }
+      },
+      "notes": "与上一页矩阵中「接管机制」一行对应，图中节点名称保持一致。"
+    },
+    {
+      "slide_number": 8,
+      "type": "section",
+      "title": "Part 4：能力演变路线"
+    },
+    {
+      "slide_number": 9,
+      "type": "content",
+      "title": "L2 → L3 演变时间线",
+      "modules": [
+        {
+          "heading": "演变的三个关键节点",
+          "bullets": [
+            "L2（2018–2021）：分功能辅助，驾驶员全时监督",
+            "L2+（2021–2024）：功能融合，高速 ODD 内连续驾驶辅助",
+            "L3（2024+）：ODD 内系统承担驾驶任务，接管是安全底线"
+          ]
+        },
+        {
+          "heading": "关键使能技术",
+          "bullets": [
+            "感知：深度融合与语义理解能力的跃升",
+            "硬件：ASIL-D 级计算冗余 + 高精地图覆盖",
+            "法规：UN R157 与各地区 L3 准入框架落地"
+          ]
+        }
+      ],
+      "figure": {
+        "position": "bottom",
+        "caption": "L2 → L2+ → L3：能力演变关键节点时间线",
+        "viz": {
+          "type": "timeline",
+          "title": "L2 → L3 能力演变路线",
+          "highlight": [2],
+          "stages": [
+            {"label": "L2 分功能辅助",   "year": "2018–2021", "annotation": "ACC · LKA · AEB"},
+            {"label": "L2+ 功能融合",    "year": "2021–2024", "annotation": "高速 NOA · 城区辅助"},
+            {"label": "L3 条件自动驾驶", "year": "2024+",     "annotation": "ODD 内无需持续监督"}
+          ]
+        }
+      },
+      "notes": "时间线阶段名称与前页节点名称严格对齐。"
+    },
+    {
+      "slide_number": 10,
+      "type": "summary",
+      "title": "小结",
+      "bullets": [
+        "L2 是「减轻负担」：驾驶员仍是安全责任主体",
+        "L3 是「责任转移」：ODD 内系统执行驾驶任务，接管链路与冗余是分水岭",
+        "从 L2 到 L3 的跨越：感知 ODD 管理 + 接管机制 + 多重冗余 + 法规准入缺一不可",
+        "交付物：可编辑正文 + 自动生成的时间线 / 流程图 / 对比矩阵 / 模块链，分工明确"
+      ]
+    }
+  ]
+}

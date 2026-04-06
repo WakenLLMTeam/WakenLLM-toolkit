@@ -1,0 +1,41 @@
+services:
+  daily-scout-bot:
+    build:
+      context: ../
+      dockerfile: backend/Dockerfile.daily-scout-bot
+    container_name: deer-flow-2-daily-scout-bot
+    command: >-
+      sh -c 'cd backend && uv run watchfiles --filter python --ignore-paths .deer-flow-2,.deer-flow-daily-scout -- "uv run python -m scripts.daily_scout_teams_bot" scripts src'
+    environment:
+      - DEER_FLOW_HOME=/app/backend/.deer-flow-daily-scout
+      - DAILY_SCOUT_THREAD_ID=daily-scout-main
+      - DEER_FLOW_CONFIG_PATH=/app/config.daily-scout.yaml
+    env_file:
+      - ../.env
+    volumes:
+      - ../config.daily-scout.yaml:/app/config.daily-scout.yaml:ro
+      - ../skills:/app/skills:ro
+      - ../backend:/app/backend
+    restart: unless-stopped
+
+  daily-scout-web:
+    build:
+      context: ../
+      dockerfile: backend/Dockerfile.daily-scout-bot
+    container_name: deer-flow-2-daily-scout-web
+    command: sh -c "cd backend && DAILY_SCOUT_WEB_RELOAD=true uv run python -m scripts.daily_scout_report_web"
+    environment:
+      - DEER_FLOW_HOME=/app/backend/.deer-flow-daily-scout
+      - DAILY_SCOUT_WEB_HOST=0.0.0.0
+      - DAILY_SCOUT_WEB_PORT=8088
+      - DAILY_SCOUT_THREAD_ID=daily-scout-main
+      - DEER_FLOW_CONFIG_PATH=/app/config.daily-scout.yaml
+    env_file:
+      - ../.env
+    ports:
+      - "8088:8088"
+    volumes:
+      - ../config.daily-scout.yaml:/app/config.daily-scout.yaml:ro
+      - ../skills:/app/skills:ro
+      - ../backend:/app/backend
+    restart: unless-stopped

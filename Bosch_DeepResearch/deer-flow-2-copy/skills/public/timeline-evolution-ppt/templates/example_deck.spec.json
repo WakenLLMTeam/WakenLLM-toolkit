@@ -1,0 +1,142 @@
+{
+  "title": "从 L2 到 L3：自动驾驶能力演变",
+  "subtitle": "timeline-evolution-ppt 完整示例",
+  "aspect_ratio": "16:9",
+  "theme": {
+    "accent_rgb": [0, 82, 204],
+    "body_rgb": [55, 65, 81],
+    "title_rgb": [17, 24, 39],
+    "author": "timeline-evolution-ppt agent"
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "title",
+      "title": "从 L2 到 L3：自动驾驶能力演变",
+      "subtitle": "可编辑正文 + 底栏时间线（术语对齐）"
+    },
+    {
+      "slide_number": 2,
+      "type": "section",
+      "title": "叙事：模块 → 差异 → 时间线"
+    },
+    {
+      "slide_number": 3,
+      "type": "content",
+      "title": "L2：驾驶员监督下的组合辅助驾驶",
+      "modules": [
+        {
+          "heading": "环境感知与融合",
+          "bullets": [
+            "多传感器目标检测与车道线估计",
+            "为纵向/横向控制提供输入"
+          ]
+        },
+        {
+          "heading": "规划与控制",
+          "bullets": ["ACC、LKA/LCC 等辅助跟车与居中", "以驾驶员可随时接管为前提"]
+        },
+        {
+          "heading": "人机交互与责任",
+          "bullets": ["驾驶员为责任主体", "系统强调「辅助」"]
+        }
+      ]
+    },
+    {
+      "slide_number": 4,
+      "type": "content",
+      "title": "L3：ODD 内的条件自动驾驶",
+      "modules": [
+        {
+          "heading": "感知与 ODD 管理",
+          "bullets": ["ODD 内系统承担持续驾驶任务", "监测 ODD 与接管请求"]
+        },
+        {
+          "heading": "规划与最小风险",
+          "bullets": ["接近 ODD 边界时安全退出或提示接管"]
+        },
+        {
+          "heading": "责任与冗余",
+          "bullets": ["依法规的责任转移", "更高冗余与监控"]
+        }
+      ]
+    },
+    {
+      "slide_number": 5,
+      "type": "content",
+      "title": "L2 与 L3：三个对齐维度",
+      "bullets": [
+        "责任：L2 驾驶员为主；L3 在 ODD 内由系统执行驾驶任务",
+        "ODD：L3 必须显式定义范围",
+        "架构：L3 对冗余、HMI 接管要求更高"
+      ]
+    },
+    {
+      "slide_number": 6,
+      "type": "timeline",
+      "title": "能力路线：从 L2 到 L3",
+      "modules": [
+        {
+          "heading": "图文对齐说明",
+          "bullets": [
+            "下方时间线三格与正文「L2 / 过渡 / L3」叙事一致",
+            "结论与数字以本页文字为准"
+          ]
+        }
+      ],
+      "timeline": {
+        "strip_title": "L2 → L3 能力演变（单图压缩多信息：责任 / ODD / 架构 / 人机）",
+        "footer_note": "要点与第 3–5 页可编辑正文对齐；法规与责任表述以当地法规与车型为准",
+        "caption": "底栏高密度时间线：每格含阶段定位 + 关键词 + 可落地的技术/责任要点",
+        "width": 2880,
+        "stages": [
+          {
+            "title": "L2 组合辅助",
+            "subtitle": "驾驶员为安全责任主体，系统为辅助执行",
+            "keywords": "监督 · 提示 · 降级",
+            "fill": "#dbeafe",
+            "details": [
+              "感知：多传感器融合、车道/目标/道路结构，短时预测供 ACC/LKA/LCC",
+              "规划：纵向跟车、横向居中/变道辅助，边界以驾驶员可瞬时接管为前提",
+              "HMI：脱手/分心监测、接管提示链路；责任与保险框架以「人驾为主」",
+              "局限：不承诺 ODD 内「代驾」；跨场景需人判断与接管"
+            ]
+          },
+          {
+            "title": "过渡阶段",
+            "subtitle": "ODD 定义、接管时序、冗余与验证体系成熟",
+            "keywords": "ODD · TtT · 冗余",
+            "fill": "#fef3c7",
+            "details": [
+              "ODD：地理/天气/速度/道路类型等边界显式化，出域前必须提示退出或接管",
+              "接管：time-to-takeover、分层提示、最小风险策略（减速/靠边等）工程化",
+              "冗余：传感/计算/制动/转向/电源监控与故障可诊断性显著提升",
+              "验证：场景库、影子模式、场测与道路测试闭环，法规试点并行"
+            ]
+          },
+          {
+            "title": "L3 条件自动驾驶",
+            "subtitle": "在 ODD 内由系统执行持续驾驶任务（依法规）",
+            "keywords": "ODD 内驾驶 · 责任转移",
+            "fill": "#d1fae5",
+            "details": [
+              "感知与定位：在 ODD 内维持可接受风险；持续判断是否仍在 ODD",
+              "决策：纵向/横向一体化；边界场景触发接管或安全停车策略",
+              "责任与合规：激活条件、数据记录、事故责任与产品责任需与法规一致",
+              "部署：车型/区域差异化；运营与远程协助策略与 L2 有本质差异"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "slide_number": 7,
+      "type": "summary",
+      "title": "小结",
+      "bullets": [
+        "L2：辅助；L3：ODD 内系统驾驶 + 接管机制",
+        "时间线仅表达顺序与阶段名，细节在可编辑文本中"
+      ]
+    }
+  ]
+}

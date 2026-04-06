@@ -1,0 +1,61 @@
+{
+  "title": "Q4 业务摘要（示例）",
+  "subtitle": "可编辑文本 + 辅佐配图",
+  "aspect_ratio": "16:9",
+  "theme": {
+    "accent_rgb": [0, 113, 227],
+    "body_rgb": [51, 65, 85],
+    "title_rgb": [15, 23, 42],
+    "author": "summary-ppt-editable demo"
+  },
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "title",
+      "title": "Q4 业务摘要",
+      "subtitle": "数据结论 · 逻辑结构 · 可编辑排版"
+    },
+    {
+      "slide_number": 2,
+      "type": "section",
+      "title": "第一部分：核心结论"
+    },
+    {
+      "slide_number": 3,
+      "type": "content",
+      "title": "关键指标概览",
+      "bullets": [
+        "收入同比 +12%，符合指引区间",
+        "毛利率稳定在 24% 左右",
+        "运营现金流覆盖资本开支",
+        "下页右侧可插入趋势图或逻辑示意图（PNG）"
+      ],
+      "notes": "口头补充：指标口径与去年同期对齐。"
+    },
+    {
+      "slide_number": 4,
+      "type": "content",
+      "title": "逻辑结构（配图区）",
+      "bullets": [
+        "左侧要点为可编辑正文",
+        "右侧为 figure.image_path 插入的图片；若路径缺失则显示占位框",
+        "图表建议用 matplotlib / Mermaid 导出 PNG 再引用路径"
+      ],
+      "figure": {
+        "caption": "示例配图（测试脚本会生成小 PNG）",
+        "image_path": ""
+      },
+      "notes": "替换 image_path 为真实导出图路径即可。"
+    },
+    {
+      "slide_number": 5,
+      "type": "summary",
+      "title": "总结",
+      "bullets": [
+        "结论一：增长与利润质量兼顾",
+        "结论二：风险项已在监控清单中跟踪",
+        "下一步：按部门拆解行动计划"
+      ]
+    }
+  ]
+}

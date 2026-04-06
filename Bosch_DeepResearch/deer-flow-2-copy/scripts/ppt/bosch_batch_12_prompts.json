@@ -1,0 +1,96 @@
+{
+  "exported_at": "2026-04-01T14:50:57",
+  "note": "博世批量四套演示，每页一条 visual_description（SDXL 英文提示词）",
+  "deck_count": 4,
+  "slides_per_deck": 3,
+  "decks": [
+    {
+      "deck_id": "bosch_mobility_adas",
+      "pptx_name": "Bosch_Mobility_ADAS.pptx",
+      "presentation_title": "Bosch Mobility & ADAS",
+      "slides": [
+        {
+          "slide_number": 1,
+          "slide_title": "Bosch Mobility Solutions",
+          "visual_description": "Title slide, Bosch red and white corporate style, subtle gray grid. Silhouette of modern car, abstract ADAS sensor arcs, clean minimalist keynote, professional automotive supplier aesthetic."
+        },
+        {
+          "slide_number": 2,
+          "slide_title": "ADAS Building Blocks",
+          "visual_description": "Infographic layout, vehicle top view, camera radar lidar icons around car, central ECU block, blue and red accents on light gray, technical blueprint style, no readable text."
+        },
+        {
+          "slide_number": 3,
+          "slide_title": "Driving Assistance Today",
+          "visual_description": "Sunset highway, multiple cars with soft glow trails, futuristic but realistic, warm light, sense of motion, wide cinematic 16:9, premium mobility closing slide."
+        }
+      ]
+    },
+    {
+      "deck_id": "autonomous_driving_stack",
+      "pptx_name": "Autonomous_Driving_Stack.pptx",
+      "presentation_title": "Autonomous Driving: Perception to Action",
+      "slides": [
+        {
+          "slide_number": 1,
+          "slide_title": "Autonomous Driving Stack",
+          "visual_description": "Dark tech background, neon cyan lines, self-driving car wireframe center, lidar point cloud hint, sci-fi dashboard mood, high contrast, no logos."
+        },
+        {
+          "slide_number": 2,
+          "slide_title": "Sense, Decide, Act",
+          "visual_description": "Three horizontal panels, icons for eyes brain steering, flow arrows left to right, dark blue UI, glass cards, abstract vehicle in middle, enterprise presentation style."
+        },
+        {
+          "slide_number": 3,
+          "slide_title": "Safety First",
+          "visual_description": "Shield and checkmark motif, layered safety rings around car diagram, calm green and blue tones, trustworthy engineering finale slide."
+        }
+      ]
+    },
+    {
+      "deck_id": "connected_vehicle_v2x",
+      "pptx_name": "Connected_Vehicle_V2X.pptx",
+      "presentation_title": "Connected Vehicle & V2X",
+      "slides": [
+        {
+          "slide_number": 1,
+          "slide_title": "Connected Mobility",
+          "visual_description": "Smart city aerial view soft focus, cars linked by glowing network lines, IoT nodes, blue and white palette, modern telecom style illustration."
+        },
+        {
+          "slide_number": 2,
+          "slide_title": "V2X Ecosystem",
+          "visual_description": "Diagram style, car talking to traffic light and cloud, dotted wireless links, isometric simple shapes, pastel blues, clean infographic without text."
+        },
+        {
+          "slide_number": 3,
+          "slide_title": "Future of Traffic Flow",
+          "visual_description": "Smooth multi-lane traffic from above, cooperative merge visualization, golden hour light, optimistic sustainable mobility theme."
+        }
+      ]
+    },
+    {
+      "deck_id": "bosch_sensors_automotive",
+      "pptx_name": "Bosch_Automotive_Sensors.pptx",
+      "presentation_title": "Automotive Sensing & Radar",
+      "slides": [
+        {
+          "slide_number": 1,
+          "slide_title": "Precision Sensing",
+          "visual_description": "Engineering title slide, Bosch-like red stripe accent, exploded sensor kit around vehicle bumper, technical cross-section mood, white gray background."
+        },
+        {
+          "slide_number": 2,
+          "slide_title": "Sensor Fusion",
+          "visual_description": "Sensor fusion concept, overlapping transparent cones from car front, heatmap style, data fusion block merging streams, cool technical illustration."
+        },
+        {
+          "slide_number": 3,
+          "slide_title": "Reliability in Motion",
+          "visual_description": "Vehicle on test track dusk, calibration targets blurred background, professional OEM supplier closing visual, subtle motion blur."
+        }
+      ]
+    }
+  ]
+}

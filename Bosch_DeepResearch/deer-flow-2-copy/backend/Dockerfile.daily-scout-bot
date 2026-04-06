@@ -1,0 +1,21 @@
+FROM python:3.12-slim
+
+RUN sed -i 's|http://deb.debian.org|https://mirrors.aliyun.com|g' /etc/apt/sources.list.d/debian.sources && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install uv -i https://mirrors.aliyun.com/pypi/simple/
+
+WORKDIR /app
+
+COPY backend ./backend
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    cd backend && uv sync --frozen
+
+ENV PORT=3978
+EXPOSE 3978
+
+CMD ["sh", "-c", "cd backend && uv run python -m scripts.daily_scout_teams_bot"]

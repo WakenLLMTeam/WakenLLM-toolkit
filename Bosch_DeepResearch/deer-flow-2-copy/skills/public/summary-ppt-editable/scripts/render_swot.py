@@ -59,10 +59,10 @@ _SWOT_POSITIONS = {
     "threats":       (1, 0),
 }
 _SWOT_HEADER_COLORS = {
-    "strengths":     "#16a34a",
-    "weaknesses":    "#dc2626",
-    "opportunities": "#2563eb",
-    "threats":       "#d97706",
+    "strengths":     "#6dbf8a",   # soft green
+    "weaknesses":    "#e07070",   # soft red
+    "opportunities": "#93c5fd",   # soft blue
+    "threats":       "#d4aa30",   # soft amber
 }
 
 

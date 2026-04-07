@@ -59,10 +59,10 @@ def render_waterfall(spec: Dict[str, Any], output_path: str) -> str:
     ax.yaxis.grid(True, color=THEME.BORDER, linewidth=0.5, linestyle="--", alpha=0.6)
     ax.set_axisbelow(True)
 
-    COLOR_POS   = "#16a34a"
-    COLOR_NEG   = THEME.ACCENT
-    COLOR_TOTAL = THEME.ACCENT + "cc"
-    COLOR_START = "#64748b"
+    COLOR_POS   = "#B8E8A2"   # soft green
+    COLOR_NEG   = "#ABCBDF"   # soft blue
+    COLOR_TOTAL = "#F0C284"   # soft amber
+    COLOR_START = "#D6EFF4"   # soft slate-blue
 
     x = np.arange(len(items))
     labels = [it.get("label", "") for it in items]

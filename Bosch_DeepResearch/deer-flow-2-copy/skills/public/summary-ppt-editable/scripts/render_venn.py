@@ -88,22 +88,16 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
                 ha="center", va="center",
                 fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold")
 
-        # Items: inside the exclusive region of each circle.
-        # Push items outward (away from diagram center) by ~55% of radius.
+        # Items: in the exclusive region of each circle.
+        # Anchor at 55% radius outward from circle center; stack vertically.
         items = circle.get("items", [])
         n_items = min(len(items), 3)
-        # Item block center: outward along label_angle at 0.52 * R
-        ic_x = cx + 0.52 * R * math.cos(label_angle)
-        ic_y = cy + 0.52 * R * math.sin(label_angle)
-        # Perpendicular direction for stacking items vertically
-        perp_angle = label_angle + math.pi / 2
-        line_h = 0.17
-        offset_start = (n_items - 1) / 2 * line_h   # centre the block
+        ic_x = cx + 0.55 * R * math.cos(label_angle)
+        ic_y = cy + 0.55 * R * math.sin(label_angle)
+        line_h = 0.18                              # vertical line spacing
+        top_y  = ic_y + (n_items - 1) / 2 * line_h  # top of the block
         for ii, item in enumerate(items[:3]):
-            # Stack along perpendicular, centred on ic_y
-            px = ic_x + (offset_start - ii * line_h) * math.sin(label_angle)
-            py = ic_y - (offset_start - ii * line_h) * math.cos(label_angle)
-            ax.text(px, py, f"· {item}",
+            ax.text(ic_x, top_y - ii * line_h, f"· {item}",
                     ha="center", va="center",
                     fontsize=THEME.FS_SMALL, color=THEME.INK)
 

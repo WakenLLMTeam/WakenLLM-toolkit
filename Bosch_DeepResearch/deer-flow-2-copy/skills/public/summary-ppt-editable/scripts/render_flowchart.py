@@ -233,12 +233,22 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
         lbl = e.get("label", "")
         if lbl:
             mx, my = (sx2 + dx2) / 2, (sy2 + dy2) / 2
-            ax.text(mx, my + 0.025, lbl,
-                    ha="center", va="bottom",
+            # Offset label perpendicular to arrow direction so it clears the line
+            perp_x = -math.sin(angle)   # perpendicular unit vector
+            perp_y =  math.cos(angle)
+            # Always push label to the "upper-left" side (perp toward +y preference)
+            if perp_y < 0:
+                perp_x, perp_y = -perp_x, -perp_y
+            offset = 0.04
+            lx = mx + perp_x * offset
+            ly = my + perp_y * offset
+            ax.text(lx, ly, lbl,
+                    ha="center", va="center",
                     fontsize=THEME.FS_SMALL, color=THEME.MUTED, style="italic",
+                    fontweight="bold",
                     transform=ax.transAxes,
-                    bbox=dict(facecolor=THEME.BG, edgecolor="none", pad=1),
-                    zorder=3)
+                    bbox=dict(facecolor=THEME.BG, edgecolor="none", pad=2),
+                    zorder=6)
 
     # ── Nodes ─────────────────────────────────────────────────────────────────
     for n in nodes:

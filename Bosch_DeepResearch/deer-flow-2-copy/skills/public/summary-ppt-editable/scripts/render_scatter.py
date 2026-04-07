@@ -93,13 +93,7 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
             ax.scatter([x], [y], s=size, color=color, alpha=0.82,
                        edgecolors="white", linewidths=1.2, zorder=4)
             lbl = pt.get("label", "")
-            if lbl:
-                # Offset label beyond circle edge (radius ≈ sqrt(size)/2 display pts)
-                radius_pts = _math.sqrt(size) / 2 + 5
-                ax.annotate(lbl, xy=(x, y), xytext=(radius_pts, 2),
-                            textcoords="offset points",
-                            fontsize=THEME.FS_SMALL, color=THEME.INK,
-                            fontweight="bold", clip_on=False, zorder=6)
+            # Labels shown in legend below — no dot-side annotations
 
     # Quadrant lines at midpoints
     if all_x and all_y and quadrant_labels:
@@ -127,15 +121,26 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_xlabel(x_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
     ax.set_ylabel(y_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
 
-    if len(series) > 1:
-        handles = []
-        for si, ser in enumerate(series):
-            handles.append(plt.Line2D([0], [0], marker="o", color="w",
-                                      markerfacecolor=series_colors[si], markersize=9,
-                                      label=ser.get("name", "")))
-        ax.legend(handles=handles, fontsize=THEME.FS_SMALL, frameon=True,
-                  framealpha=0.92, edgecolor=THEME.BORDER,
-                  loc="lower right", bbox_to_anchor=(0.99, 0.01))
+    # Legend: one entry per point using its label + color, size proportional to bubble size
+    legend_handles = []
+    seen: set = set()
+    for si, ser in enumerate(series):
+        for pt in ser.get("points", []):
+            lbl = pt.get("label", "") or ser.get("name", "")
+            color = pt.get("color", series_colors[si])
+            size = pt.get("size", 150)
+            if lbl and lbl not in seen:
+                seen.add(lbl)
+                ms = max(7, min(14, (size ** 0.5) / 2))
+                legend_handles.append(plt.Line2D([0], [0], marker="o", color="w",
+                                                 markerfacecolor=color, markersize=ms,
+                                                 label=lbl))
+    if legend_handles:
+        ncol = min(len(legend_handles), 3)
+        ax.legend(handles=legend_handles, fontsize=THEME.FS_BODY,
+                  frameon=True, framealpha=0.95, edgecolor=THEME.BORDER,
+                  loc="upper left", bbox_to_anchor=(0.01, 0.99),
+                  ncol=ncol, handlelength=1.2)
 
     if title:
         fig.text(0.5, 0.98, title, ha="center", va="top",

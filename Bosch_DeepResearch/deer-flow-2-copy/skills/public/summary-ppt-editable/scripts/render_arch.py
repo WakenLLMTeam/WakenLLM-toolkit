@@ -49,9 +49,6 @@ Spec format:
       ]
     }
   ],
-  "connections": [
-    {"from_layer": 3, "to_layer": 2, "label": "raw data"}
-  ],
   "fig_width": 13,
   "fig_height": 5.5
 }
@@ -65,7 +62,6 @@ Fields:
   blocks[].label     Primary text (≤15 chars)
   blocks[].sublabel  Secondary text (optional, ≤20 chars)
   blocks[].badge     Top-right small badge (optional, ≤8 chars)
-  connections[]   Optional inter-layer arrows (by 0-based layer index, top=0)
 """
 from __future__ import annotations
 
@@ -78,7 +74,6 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
-import numpy as np
 
 from viz_theme import THEME, setup_matplotlib, fit_fontsize
 
@@ -103,7 +98,6 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
     layers: List[Dict[str, Any]] = spec.get("layers", [])
     title: Optional[str] = spec.get("title")
     direction = spec.get("direction", "TB").upper()
-    connections: List[Dict[str, Any]] = spec.get("connections", [])
 
     if not layers:
         raise ValueError("arch spec requires at least one layer")
@@ -112,15 +106,9 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
     fw = float(spec.get("fig_width", 13.0))
     fh = float(spec.get("fig_height", max(4.5, n_layers * 1.3)))
 
-    # If BT (bottom-to-top): reverse layers for rendering, adjust connections
+    # If BT (bottom-to-top): reverse layers for rendering
     if direction == "BT":
         layers = list(reversed(layers))
-        connections = [
-            {**c,
-             "from_layer": n_layers - 1 - c.get("from_layer", 0),
-             "to_layer": n_layers - 1 - c.get("to_layer", 0)}
-            for c in connections
-        ]
 
     fig, ax = plt.subplots(figsize=(fw, fh))
     fig.patch.set_facecolor(THEME.BG)
@@ -135,7 +123,7 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
     content_left = label_strip_w + 0.01
     content_w = 1.0 - content_left - 0.01
 
-    # Store band centre-y for drawing connections later
+    # Store band centre-y (kept for potential future use)
     band_centers: List[float] = []
 
     for li, layer in enumerate(layers):
@@ -272,30 +260,6 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
                         fontsize=badge_fs, color=THEME.ACCENT, fontweight="bold",
                         transform=ax.transAxes, zorder=6,
                         clip_on=True)
-
-    # ── Inter-layer connections ───────────────────────────────────────────────
-    for conn in connections:
-        fl = conn.get("from_layer", 0)
-        tl = conn.get("to_layer", 0)
-        lbl = conn.get("label", "")
-        if fl >= n_layers or tl >= n_layers:
-            continue
-        y_from = band_centers[fl]
-        y_to = band_centers[tl]
-        x_center = 0.5 + content_left / 2
-        ax.annotate("",
-                    xy=(x_center, y_to + 0.02 * np.sign(y_from - y_to)),
-                    xytext=(x_center, y_from - 0.02 * np.sign(y_from - y_to)),
-                    xycoords="axes fraction", textcoords="axes fraction",
-                    arrowprops=dict(arrowstyle="-|>", color=THEME.ACCENT,
-                                   lw=1.6, mutation_scale=12),
-                    zorder=8)
-        if lbl:
-            my = (y_from + y_to) / 2
-            ax.text(x_center + 0.015, my, lbl,
-                    ha="left", va="center",
-                    fontsize=THEME.FS_MICRO, color=THEME.MUTED, style="italic",
-                    transform=ax.transAxes, zorder=9)
 
     # ── Title ─────────────────────────────────────────────────────────────────
     if title:

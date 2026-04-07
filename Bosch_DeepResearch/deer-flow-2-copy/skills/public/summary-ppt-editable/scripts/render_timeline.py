@@ -226,6 +226,9 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=THEME.DPI, bbox_inches="tight",
                 facecolor=THEME.BG)
+    # Also export as PDF (vector, lossless) alongside the PNG
+    pdf_path = str(output_path).replace(".png", ".pdf")
+    fig.savefig(pdf_path, format="pdf", bbox_inches="tight", facecolor=THEME.BG)
     plt.close(fig)
     return f"Timeline saved: {output_path}"
 

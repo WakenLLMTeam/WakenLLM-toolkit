@@ -83,7 +83,7 @@ class Theme:
     FS_MICRO  = 6.5
 
     # Figure defaults
-    DPI       = 150
+    DPI       = 300
     FIG_W     = 13
     FIG_H     = 4.0
 

@@ -212,6 +212,9 @@ def render_pipeline(spec: Dict[str, Any], output_path: str) -> str:
 
     fig.subplots_adjust(left=0.01, right=0.99, top=0.88 if title else 0.98, bottom=0.08)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    # Save PDF (vector) before closing figure
+    pdf_path = str(output_path).replace(".png", ".pdf")
+    fig.savefig(pdf_path, format="pdf", bbox_inches="tight", facecolor=THEME.BG)
     fig.savefig(output_path, dpi=THEME.DPI, bbox_inches="tight",
                 facecolor=THEME.BG)
     plt.close(fig)

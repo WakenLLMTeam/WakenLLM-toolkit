@@ -407,10 +407,10 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
 
             # ----- Bottom band: timeline / pipeline (text above, figure full width below) -----
             elif has_figure and pos == "bottom":
-                # 略增高底栏以容纳「高密度时间线」PNG（仍随图片拉伸至该矩形）
-                body_h = Inches(2.55)
-                fig_top = Inches(3.95)
-                fig_h = Inches(3.15)
+                # 文本区限高 2.0 英寸，图片从固定位置 3.55 开始，留出 0.2 英寸间距防重叠
+                body_h = Inches(2.0)
+                fig_top = Inches(3.55)
+                fig_h = Inches(3.55)
                 body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, body_h)
                 bf = body_box.text_frame
                 bf.word_wrap = True

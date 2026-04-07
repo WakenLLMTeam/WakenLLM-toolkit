@@ -245,10 +245,13 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
 
             # Arc length in "axes units" (radius is in axes-fraction, fw converts to inches)
             arc_len = math.radians(arc_deg) * radius_mid
-            # Font size formula from original code: arc_len / (nchar * 0.4) * 16
-            # clamped: min 7, max depends on ring width
-            max_fs = min(ring_width * fw * 8.5, 24.0)   # ring height constraint
-            fs = min(max(arc_len / (max(n_chars, 1) * 0.4) * 16, 7.0), max_fs)
+            # Font size formula from Pie Chart.py:
+            #   fs = arc_len / (nchar * 0.4) * 16, clamped [min_fs, max_fs]
+            # For single-ring large slices: min=12, max=22
+            # For narrow donut bands: max constrained by ring height
+            min_fs  = 12.0
+            max_fs  = min(ring_width * fw * 10.0, 22.0)
+            fs = float(np.clip(arc_len / (max(n_chars, 1) * 0.4) * 16, min_fs, max_fs))
 
             # Rotation: align text with slice tangent (same as original)
             rot = theta - 90
@@ -276,7 +279,7 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                     xytext=(x_out, y_out),
                     arrowprops=dict(arrowstyle="->", lw=0.7, color="gray"),
                     ha=ha_align, va="center",
-                    fontsize=max(fs, 7.0), fontweight="bold",
+                    fontsize=max(fs, 11.0), fontweight="bold",
                     fontfamily=font,
                     zorder=10,
                 )
@@ -288,8 +291,12 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                  fontsize=THEME.FS_TITLE + 2, color=THEME.INK,
                  fontweight="bold", fontfamily=font)
 
-    ax.set_xlim(-1.35, 1.35)
-    ax.set_ylim(-1.35, 1.35)
+    # ── Axis limits: fit tightly around the actual drawn radius ───────────────
+    actual_outer = ring_width * n_rings          # outermost ring edge
+    # Leave room for callout arrows and title
+    margin = actual_outer * 0.25 + 0.05
+    ax.set_xlim(-(actual_outer + margin), actual_outer + margin)
+    ax.set_ylim(-(actual_outer + margin), actual_outer + margin)
     ax.axis("off")
 
     plt.tight_layout(rect=[0, 0, 1, 0.95 if title else 1.0])

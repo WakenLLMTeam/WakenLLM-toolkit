@@ -81,15 +81,22 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
     branch_gap = 2 * math.pi / max(n, 1)
     max_spread = branch_gap * 0.38   # never use more than 38% of branch gap
 
-    R_branch = 0.40   # center → branch node
-    R_child  = 0.78   # center → child node (larger = more room for labels)
+    R_branch = 0.42   # center → branch node
+    R_child  = 0.82   # center → child node
 
-    # Draw center node
-    center_circle = plt.Circle((0, 0), 0.13, color=THEME.ACCENT,
+    # ── Center node — size adapts to label length ────────────────────────────
+    center_lines = center_label.replace("\\n", "\n").split("\n")
+    max_center_chars = max(len(l) for l in center_lines)
+    n_center_lines   = len(center_lines)
+    # Radius: at least 0.13, grows with label
+    R_c = max(0.13, max_center_chars * 0.012 + n_center_lines * 0.025)
+    center_circle = plt.Circle((0, 0), R_c, color=THEME.ACCENT,
                                  zorder=5, ec="white", lw=1.5)
     ax.add_patch(center_circle)
-    ax.text(0, 0, center_label, ha="center", va="center",
-            fontsize=THEME.FS_BODY + 1, color="white", fontweight="bold",
+    c_fs = fit_fontsize(center_label, R_c * 2 * fw * 0.82, R_c * 2 * fh * 0.82,
+                        start_pt=THEME.FS_BODY + 2, min_pt=8.0)
+    ax.text(0, 0, center_label.replace("\\n", "\n"), ha="center", va="center",
+            fontsize=c_fs, color="white", fontweight="bold",
             zorder=6, multialignment="center")
 
     for bi, branch in enumerate(branches):
@@ -100,11 +107,13 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
         label = branch.get("label", "")
         children: List[str] = branch.get("children", [])
 
-        # Line: center → branch
-        ax.plot([0, bx], [0, by], color=THEME.BORDER, lw=1.5, zorder=1)
+        # Line: center → branch — solid black
+        ax.plot([0, bx], [0, by], color="black", lw=1.8, zorder=1)
 
-        # Branch node
-        node_w, node_h = 0.22, 0.095
+        # Branch node — width adapts to label length
+        b_chars = len(label)
+        node_w = max(0.20, b_chars * 0.018 + 0.06)
+        node_h = 0.095
         rect = mpatches.FancyBboxPatch(
             (bx - node_w / 2, by - node_h / 2), node_w, node_h,
             boxstyle="round,pad=0.015",
@@ -131,15 +140,17 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
         for ci, (child_label, cangle) in enumerate(zip(children, child_angles)):
             cx = R_child * math.cos(cangle)
             cy = R_child * math.sin(cangle)
-            # Line: branch → child
-            ax.plot([bx, cx], [by, cy], color=color,
-                    lw=1.0, linestyle="--", zorder=2, alpha=0.8)
-            # Child node (small pill)
-            child_w, child_h = 0.20, 0.070
+            # Line: branch → child — solid black
+            ax.plot([bx, cx], [by, cy], color="black",
+                    lw=1.2, linestyle="-", zorder=2)
+            # Child node — width adapts to label length
+            c_chars = len(child_label)
+            child_w = max(0.18, c_chars * 0.016 + 0.05)
+            child_h = 0.072
             crect = mpatches.FancyBboxPatch(
                 (cx - child_w / 2, cy - child_h / 2), child_w, child_h,
                 boxstyle="round,pad=0.012",
-                facecolor=THEME.BG, edgecolor=color, linewidth=0.9,
+                facecolor=THEME.BG, edgecolor="black", linewidth=1.0,
                 transform=ax.transData, zorder=3
             )
             ax.add_patch(crect)

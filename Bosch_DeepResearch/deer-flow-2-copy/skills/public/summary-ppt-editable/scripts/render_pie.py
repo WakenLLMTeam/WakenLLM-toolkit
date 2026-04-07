@@ -232,7 +232,7 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                 counterclock=False,
             )
 
-        # ── Labels ────────────────────────────────────────────────────────────
+        # ── Labels (follows original Pie Chart.py approach) ──────────────────
         for w, s, val in zip(wedges, slices, values):
             theta = (w.theta2 + w.theta1) / 2.0
             theta_rad = math.radians(theta)
@@ -242,27 +242,21 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
             arc_deg = abs(w.theta2 - w.theta1)
             label_str = _label_text(s["label"], val, total)
             n_chars = max(len(line) for line in label_str.split("\n"))
-            n_lines = label_str.count("\n") + 1
 
-            # Font size: fit within the ring arc area
-            # Arc length in fig inches ≈ arc_rad * radius_mid * fw
-            arc_len_in = math.radians(arc_deg) * radius_mid * fw * 0.85
-            ring_h_in  = ring_width * fh * 0.70
-            # fit by width
-            fs_w = (arc_len_in / max(n_chars, 1)) * 65.0
-            # fit by height
-            fs_h = (ring_h_in / max(n_lines, 1)) * 62.0
-            fs = max(min(fs_w, fs_h, 22.0), 6.5)
+            # Arc length in "axes units" (radius is in axes-fraction, fw converts to inches)
+            arc_len = math.radians(arc_deg) * radius_mid
+            # Font size formula from original code: arc_len / (nchar * 0.4) * 16
+            # clamped: min 7, max depends on ring width
+            max_fs = min(ring_width * fw * 8.5, 24.0)   # ring height constraint
+            fs = min(max(arc_len / (max(n_chars, 1) * 0.4) * 16, 7.0), max_fs)
 
-            # Rotation aligned to slice tangent (radial outward)
+            # Rotation: align text with slice tangent (same as original)
             rot = theta - 90
-            # Flip if label would be upside-down
-            norm_rot = rot % 360
-            if 90 < norm_rot < 270:
+            if 90 < rot % 360 < 270:
                 rot += 180
 
-            # Large slice (arc ≥ 7°): label inside the slice
-            if arc_deg >= 7:
+            # Large enough arc to show label inside
+            if arc_deg > 8:
                 ax.text(x, y, label_str,
                         ha="center", va="center",
                         fontsize=fs, fontweight="bold",
@@ -271,19 +265,18 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                         fontfamily=font,
                         zorder=10)
             else:
-                # Thin slice: callout arrow outside
-                r_out = r_this + 0.08 + ri * 0.06
+                # Small slice: callout arrow to outside
+                r_out = outer_radius + 0.10
                 x_out = r_out * math.cos(theta_rad)
                 y_out = r_out * math.sin(theta_rad)
                 ha_align = "left" if x_out >= 0 else "right"
-                fs_small = max(min(fs, 10.0), 6.5)
                 ax.annotate(
                     label_str,
                     xy=(x, y),
                     xytext=(x_out, y_out),
                     arrowprops=dict(arrowstyle="->", lw=0.7, color="gray"),
                     ha=ha_align, va="center",
-                    fontsize=fs_small, fontweight="bold",
+                    fontsize=max(fs, 7.0), fontweight="bold",
                     fontfamily=font,
                     zorder=10,
                 )

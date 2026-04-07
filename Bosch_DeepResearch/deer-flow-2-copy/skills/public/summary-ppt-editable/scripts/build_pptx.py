@@ -388,10 +388,12 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             pos = (fig.get("position") or "right").lower()
             # Comparison tables and flowcharts always get full-slide layout
             viz_type = (fig.get("viz") or {}).get("type", "")
-            if viz_type in ("comparison", "flowchart"):
+            if viz_type in ("comparison", "flowchart", "arch"):
                 pos = "full"
             elif viz_type in ("timeline", "pipeline"):
                 pos = "bottom"
+            elif viz_type == "radar":
+                pos = "right"
             if pos not in ("right", "bottom", "full"):
                 pos = "right"
 

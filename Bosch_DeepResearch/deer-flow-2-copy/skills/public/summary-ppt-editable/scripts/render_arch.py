@@ -53,7 +53,7 @@ Spec format:
     {"from_layer": 3, "to_layer": 2, "label": "raw data"}
   ],
   "fig_width": 13,
-  "fig_height": 7
+  "fig_height": 5.5
 }
 
 Fields:
@@ -110,7 +110,7 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
 
     n_layers = len(layers)
     fw = float(spec.get("fig_width", 13.0))
-    fh = float(spec.get("fig_height", max(5.5, n_layers * 1.6)))
+    fh = float(spec.get("fig_height", max(4.5, n_layers * 1.3)))
 
     # If BT (bottom-to-top): reverse layers for rendering, adjust connections
     if direction == "BT":

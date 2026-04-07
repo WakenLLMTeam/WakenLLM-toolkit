@@ -21,8 +21,8 @@ Spec format:
     {"name": "Huawei",     "scores": [7, 8, 9, 7, 8], "color": "#f97316"}
   ],
   "score_range": [0, 10],
-  "fig_width": 8,
-  "fig_height": 6
+  "fig_width": 7,
+  "fig_height": 7
 }
 
 Fields:
@@ -72,8 +72,8 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
         raise ValueError("radar requires at least 1 player")
 
     n = len(dimensions)
-    fw = float(spec.get("fig_width", 8.0))
-    fh = float(spec.get("fig_height", 6.5))
+    fw = float(spec.get("fig_width", 7.0))
+    fh = float(spec.get("fig_height", 7.0))
 
     # Angles for each axis (evenly spaced, starting from top)
     angles = np.linspace(0, 2 * math.pi, n, endpoint=False).tolist()

@@ -78,29 +78,54 @@ def render_onion(spec: Dict[str, Any], output_path: str) -> str:
             fontsize=THEME.FS_SMALL, color="white", fontweight="bold",
             zorder=n + 6)
 
-    # Labels on rings: alternate left/right
-    # Distribute labels evenly around the rings to avoid overlap
-    # Each ring gets its own angle, spread around the circle
-    label_angles = [math.pi * 0.20 + math.pi * 2 * i / max(n, 1) for i in range(n)]
-    for i, (layer, angle) in enumerate(zip(layers, label_angles)):
-        r_mid = r_center + (i + 0.5) * ring_w
+    # Labels arc-following: each ring occupies a 360°/n sector.
+    # Text is placed at the mid-point of the ring radius and rotated so it
+    # follows the curvature of the ring (tangent direction), preventing overlap.
+    sector_deg = 360.0 / max(n, 1)
+    # Start angle offset so labels begin near the top-left (135°)
+    start_deg = 135.0
+    for i, layer in enumerate(layers):
+        # Each layer[i] is the i-th ring from the inside out
+        r_inner = r_center + i * ring_w
+        r_outer_i = r_center + (i + 1) * ring_w
+        r_mid = (r_inner + r_outer_i) / 2
+
         label = layer.get("label", "")
         desc = layer.get("description", "")
 
-        # Place label at ~75% of ring radius along the angle
-        lx = r_mid * 0.72 * math.cos(angle)
-        ly = r_mid * 0.72 * math.sin(angle)
-        ha = "left" if lx > 0.05 else ("right" if lx < -0.05 else "center")
+        # Mid-angle of this layer's sector (in degrees, CCW from East)
+        mid_deg = start_deg + sector_deg * i + sector_deg / 2
+        mid_rad = math.radians(mid_deg)
 
-        ax.text(lx, ly, label,
-                ha=ha, va="center",
+        lx = r_mid * math.cos(mid_rad)
+        ly = r_mid * math.sin(mid_rad)
+
+        # Text rotation: tangent to the ring at this angle.
+        # Tangent direction = mid_deg + 90. Clamp to [-90, 90] so text never
+        # appears upside-down (flip 180° when needed).
+        rot = mid_deg + 90
+        if rot > 90:
+            rot -= 180
+        if rot < -90:
+            rot += 180
+
+        # Offset label slightly outward and desc inward along the radial axis
+        # so they sit within the ring band without overlapping each other.
+        band = ring_w * 0.22          # half-offset between label and desc lines
+        ox = band * math.cos(mid_rad)  # outward nudge for label
+        oy = band * math.sin(mid_rad)
+
+        ax.text(lx + ox, ly + oy, label,
+                ha="center", va="center",
                 fontsize=THEME.FS_SMALL, color=THEME.INK,
-                fontweight="bold", zorder=n + 3)
+                fontweight="bold", rotation=rot,
+                rotation_mode="anchor", zorder=n + 3)
         if desc:
-            ax.text(lx, ly - 0.07, desc,
-                    ha=ha, va="center",
+            ax.text(lx - ox, ly - oy, desc,
+                    ha="center", va="center",
                     fontsize=THEME.FS_MICRO, color=THEME.MUTED,
-                    fontweight="bold", zorder=n + 3)
+                    fontweight="normal", rotation=rot,
+                    rotation_mode="anchor", zorder=n + 3)
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

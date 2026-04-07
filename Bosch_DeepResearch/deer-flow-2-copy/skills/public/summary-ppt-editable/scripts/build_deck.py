@@ -81,6 +81,7 @@ import render_venn
 import render_onion
 import render_gantt
 import render_swot
+import render_pie
 import build_pptx as _build_pptx_mod
 
 
@@ -99,6 +100,7 @@ _RENDERERS = {
     "heatmap":    render_heatmap.render_heatmap,
     "waterfall":  render_waterfall.render_waterfall,
     "funnel":     render_funnel.render_funnel,
+    "pie":        render_pie.render_pie,
     # Structure
     "mindmap":    render_mindmap.render_mindmap,
     "tree":       render_tree.render_tree,

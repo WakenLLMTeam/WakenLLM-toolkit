@@ -73,14 +73,14 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
             for i in range(3)
         ]
 
-    # Draw circles
+    # Draw circles — black outline, semi-transparent fill
     for ci, (circle, (cx, cy)) in enumerate(zip(circles, centers)):
         color = circle.get("color", THEME.SURFACE)
         patch = plt.Circle((cx, cy), R, color=color, alpha=alpha,
-                            ec=THEME.BORDER, lw=1.2, zorder=2)
+                            ec="black", lw=2.0, zorder=2)
         ax.add_patch(patch)
 
-        # Circle label (outside)
+        # Circle label: outside the circle along the outward angle
         label_angle = math.pi / 2 + 2 * math.pi * ci / n if n == 3 else (math.pi if ci == 0 else 0)
         lx = cx + (R + 0.22) * math.cos(label_angle)
         ly = cy + (R + 0.22) * math.sin(label_angle)
@@ -88,31 +88,51 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
                 ha="center", va="center",
                 fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold")
 
-        # Items inside the non-overlapping region (push outward)
+        # Items: inside the exclusive region of each circle.
+        # Push items outward (away from diagram center) by ~55% of radius.
         items = circle.get("items", [])
+        n_items = min(len(items), 3)
+        # Item block center: outward along label_angle at 0.52 * R
+        ic_x = cx + 0.52 * R * math.cos(label_angle)
+        ic_y = cy + 0.52 * R * math.sin(label_angle)
+        # Perpendicular direction for stacking items vertically
+        perp_angle = label_angle + math.pi / 2
+        line_h = 0.17
+        offset_start = (n_items - 1) / 2 * line_h   # centre the block
         for ii, item in enumerate(items[:3]):
-            ix = cx + 0.28 * math.cos(label_angle)
-            iy = cy + 0.28 * math.sin(label_angle) - ii * 0.15 + (len(items[:3]) - 1) * 0.075
-            ax.text(ix, iy, f"· {item}",
+            # Stack along perpendicular, centred on ic_y
+            px = ic_x + (offset_start - ii * line_h) * math.sin(label_angle)
+            py = ic_y - (offset_start - ii * line_h) * math.cos(label_angle)
+            ax.text(px, py, f"· {item}",
                     ha="center", va="center",
-                    fontsize=THEME.FS_MICRO, color=THEME.INK)
+                    fontsize=THEME.FS_SMALL, color=THEME.INK)
 
-    # Overlap labels
-    overlap_positions = {
-        (0, 1): (0.0, 0.0) if n == 2 else ((centers[0][0] + centers[1][0]) / 2,
-                                             (centers[0][1] + centers[1][1]) / 2),
-    }
-    if n == 3:
-        overlap_positions[(0, 1)] = ((centers[0][0] + centers[1][0]) / 2,
-                                     (centers[0][1] + centers[1][1]) / 2)
-        overlap_positions[(0, 2)] = ((centers[0][0] + centers[2][0]) / 2,
-                                     (centers[0][1] + centers[2][1]) / 2)
-        overlap_positions[(1, 2)] = ((centers[1][0] + centers[2][0]) / 2,
-                                     (centers[1][1] + centers[2][1]) / 2)
-        overlap_positions[(0, 1, 2)] = (
-            sum(c[0] for c in centers) / 3,
-            sum(c[1] for c in centers) / 3,
-        )
+    # Overlap label positions.
+    # For 2-circle overlaps: midpoint of the two centers, then nudge AWAY
+    # from the diagram center so labels don't pile on top of each other.
+    cx_all = sum(c[0] for c in centers) / n
+    cy_all = sum(c[1] for c in centers) / n
+
+    def _overlap_pos(idxs):
+        mx = sum(centers[i][0] for i in idxs) / len(idxs)
+        my = sum(centers[i][1] for i in idxs) / len(idxs)
+        if len(idxs) == 2:
+            # Nudge away from diagram centroid by 30% to spread labels
+            dx, dy = mx - cx_all, my - cy_all
+            dist = math.hypot(dx, dy) or 1.0
+            nudge = 0.18
+            mx += dx / dist * nudge
+            my += dy / dist * nudge
+        return mx, my
+
+    overlap_positions = {}
+    if n == 2:
+        overlap_positions[(0, 1)] = (0.0, 0.0)
+    else:
+        overlap_positions[(0, 1)]    = _overlap_pos([0, 1])
+        overlap_positions[(0, 2)]    = _overlap_pos([0, 2])
+        overlap_positions[(1, 2)]    = _overlap_pos([1, 2])
+        overlap_positions[(0, 1, 2)] = _overlap_pos([0, 1, 2])
 
     for ov in overlaps:
         idxs = tuple(sorted(ov.get("circles", [])))

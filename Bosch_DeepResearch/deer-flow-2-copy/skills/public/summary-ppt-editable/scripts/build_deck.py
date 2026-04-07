@@ -19,6 +19,8 @@ Supported viz types:
   "flowchart"   -> render_flowchart.render_flowchart(spec, path)
   "comparison"  -> render_comparison.render_comparison(spec, path)
   "pipeline"    -> render_pipeline.render_pipeline(spec, path)
+  "radar"       -> render_radar.render_radar(spec, path)
+  "arch"        -> render_arch.render_arch(spec, path)
 
 Viz spec is the same dict you would pass directly to each renderer's JSON format,
 embedded under slide.figure.viz in the plan JSON.
@@ -64,14 +66,18 @@ import render_timeline
 import render_flowchart
 import render_comparison
 import render_pipeline
+import render_radar
+import render_arch
 import build_pptx as _build_pptx_mod
 
 
 _RENDERERS = {
-    "timeline": render_timeline.render_timeline,
-    "flowchart": render_flowchart.render_flowchart,
+    "timeline":   render_timeline.render_timeline,
+    "flowchart":  render_flowchart.render_flowchart,
     "comparison": render_comparison.render_comparison,
-    "pipeline": render_pipeline.render_pipeline,
+    "pipeline":   render_pipeline.render_pipeline,
+    "radar":      render_radar.render_radar,
+    "arch":       render_arch.render_arch,
 }
 
 

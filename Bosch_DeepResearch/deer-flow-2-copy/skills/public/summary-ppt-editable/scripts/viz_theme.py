@@ -89,3 +89,35 @@ class Theme:
 
 
 THEME = Theme()
+
+
+# ── Bosch brand color palette ─────────────────────────────────────────────────
+
+class BoschTheme(Theme):
+    """
+    Bosch corporate design language on top of the base Theme.
+    Use for Bosch-specific presentations (ADAS, automotive, safety).
+    """
+    # Bosch Red — primary brand accent
+    ACCENT       = "#E20015"
+    ACCENT_LIGHT = "#fde8ea"
+    ACCENT_MID   = "#f28090"
+
+    # Bosch Navy — secondary accent for multi-series charts
+    NAVY         = "#003366"
+    NAVY_LIGHT   = "#e0e8f0"
+
+    # Functional signal colors (ADAS / safety context)
+    SAFE_GREEN   = "#00873D"   # system OK / L2+ operational
+    WARN_AMBER   = "#F5A623"   # transitional / conditional
+    ALERT_RED    = "#E20015"   # system limit / ASIL violation (same as accent)
+    INFO_BLUE    = "#0057A8"   # informational / passive monitoring
+
+    # Layer palette for arch diagrams (sensor→app order)
+    LAYER_SENSOR = "#f3e8ff"   # purple tint — sensor / hardware
+    LAYER_HAL    = "#dcfce7"   # green tint — hardware abstraction / BSP
+    LAYER_MW     = "#fef9c3"   # yellow tint — middleware / OS
+    LAYER_APP    = "#dbeafe"   # blue tint — application / algorithm
+
+
+BOSCH_THEME = BoschTheme()

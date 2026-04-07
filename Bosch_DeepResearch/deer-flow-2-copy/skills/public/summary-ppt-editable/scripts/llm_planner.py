@@ -57,7 +57,9 @@ Schema:
       ],
       "has_timeline": true|false,
       "has_comparison": true|false,
-      "has_process": true|false
+      "has_process": true|false,
+      "has_radar": true|false,
+      "has_arch": true|false
     }
   ]
 }
@@ -68,6 +70,8 @@ Rules:
 - has_timeline: true when section covers chronological evolution/roadmap
 - has_comparison: true when section compares multiple options/players
 - has_process: true when section describes a pipeline/workflow/architecture
+- has_radar: true when section compares 3+ players across multiple capability dimensions
+- has_arch: true when section describes a layered hardware/software/system stack
 """).strip()
 
 _EXTRACT_USER_TEMPLATE = "Topic: {topic}\n\nExtra context: {extra}\n\nProduce the structured outline now."
@@ -190,17 +194,72 @@ Use for: side-by-side capability matrix. Position: "right".
 Use for: system module chains, processing steps. Position: "bottom".
 Do NOT include arrow_label.
 
+### radar  (Bosch specialty — competitor capability comparison)
+{
+  "type": "radar",
+  "title": "string",
+  "dimensions": ["≤15 chars each", ...],   // 4-7 capability axes
+  "players": [
+    {
+      "name": "≤12 chars",
+      "scores": [score_per_dimension],      // numbers in score_range
+      "color": "#hex",
+      "highlight": true                     // true for OUR player (Bosch/client)
+    }
+  ],
+  "score_range": [0, 10]
+}
+Use for: comparing 3-5 competitors across 4-7 capability dimensions.
+Position: "right".
+
+### arch  (Bosch specialty — layered system architecture)
+{
+  "type": "arch",
+  "title": "string",
+  "direction": "BT",                        // BT=sensor-to-app (bottom=sensor), TB=top-to-app
+  "layers": [
+    {
+      "name": "≤20 chars",
+      "color": "#hex (light pastel)",
+      "blocks": [
+        { "label": "≤15 chars", "sublabel": "≤20 chars", "badge": "≤8 chars" }
+      ]
+    }
+  ]
+}
+Use for: ECU/SoC/software stack, sensor-fusion architecture, AUTOSAR layering.
+Position: "right" (full-height).
+
 ## Layout selection rules
 
 - Use "cards" when: 3-6 parallel topics that are best compared side-by-side
 - Use "modules" when: 2-3 named sub-topics, each with a few bullets
 - Use "bullets" when: single continuous topic with simple list
-- Add figure.viz when the section outline flags has_timeline/has_comparison/has_process
+- Add figure.viz when the section outline flags has_timeline/has_comparison/has_process/has_radar/has_arch
+- Use "radar" viz when has_radar=true and there are ≥3 identifiable competitors
+- Use "arch" viz when has_arch=true and the architecture has ≥2 identifiable layers
 - Structure: title slide → section dividers → content slides → summary
+
+## Bosch / ADAS domain guidance
+
+When the topic is automotive, ADAS, autonomous driving, or Bosch products:
+- Use accent_rgb: [226, 0, 21] (Bosch Red) for the theme
+- Prefer "arch" viz for: sensor fusion stack, AUTOSAR layers, SoC/ECU architecture,
+  functional safety decomposition
+- Prefer "radar" viz for: competitor benchmarking (Mobileye, Waymo, Huawei, Continental,
+  Nvidia, Qualcomm, Bosch), capability assessment, technology readiness comparison
+- Use "pipeline" for: perception→prediction→planning→control chain, data processing flow
+- Use "timeline" for: L2→L2+→L3→L4 evolution, regulation milestones (UN R79/R157, ISO 26262)
+- Use "comparison" for: ASIL level matrix, regulation comparison (EU/US/China),
+  sensor modality tradeoffs (camera/radar/lidar/ultrasonic)
+- Key ADAS terms to use accurately: ODD, TOR, MRC, ASIL, ISO 26262, SOTIF ISO 21448,
+  NOA, HWP, AEB, TJA, LKA, ACC, V2X, NCAP, FuSa, cybersecurity (UN R155/R156)
+- For Chinese market: include NIO, Xpeng, Huawei ADS, Li Auto, BYD as relevant competitors
 
 ## Color guidance
 
-- Automotive / engineering: [26, 86, 219] or [15, 40, 100]
+- Bosch / automotive safety: [226, 0, 21] (Bosch Red) — use as primary accent
+- Automotive / engineering (generic): [26, 86, 219] or [15, 40, 100]
 - Technology / AI: [79, 70, 229] or [13, 148, 136]
 - Finance / data: [5, 150, 105] or [71, 85, 105]
 - Safety / medical: [30, 64, 175] or [109, 40, 217]

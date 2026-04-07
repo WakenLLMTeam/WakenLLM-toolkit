@@ -571,21 +571,43 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 cap_h = Inches(0.35) if cap else Inches(0)
                 gap = Inches(0.15)
 
+                # Total available height from title bottom to slide bottom
+                avail_h = slide_h - top_body - cap_h - Inches(0.08)
+
                 if _content_lines == 0:
-                    # No text content — give full remaining height to figure
+                    # No text: give everything to the figure
                     body_h = Inches(0)
                     fig_top = top_body
+                    fig_h = avail_h
                 else:
-                    # ~0.28in per line, clamped 0.8–2.0 inches
-                    body_h = Inches(max(0.8, min(2.0, 0.35 + _content_lines * 0.28)))
+                    # Compute natural body height (~0.26in/line), max 35% of avail
+                    natural_body = 0.25 + _content_lines * 0.26
+                    max_body = float(avail_h) / 914400 * 0.35  # 35% of available
+                    body_h = Inches(max(0.55, min(max_body, natural_body)))
                     fig_top = top_body + body_h + gap
-
-                # Figure height: remaining space minus caption, clamped so bottom stays within slide
-                fig_h = slide_h - fig_top - cap_h - Inches(0.1)
-                fig_h = max(fig_h, Inches(1.5))
-                # Ensure fig bottom + cap fits inside slide
-                if fig_top + fig_h + cap_h > slide_h - Inches(0.05):
                     fig_h = slide_h - fig_top - cap_h - Inches(0.08)
+                    fig_h = max(fig_h, Inches(1.5))
+
+                # If image exists, respect its aspect ratio to avoid squashing
+                if img_path and os.path.isfile(img_path):
+                    try:
+                        from PIL import Image as _PIL
+                        with _PIL.open(img_path) as _im:
+                            _iw, _ih = _im.size
+                        img_ratio = _iw / _ih  # e.g. timeline ~3.5:1
+                        slot_w = float(full_text_w) / 914400
+                        # Ideal height for this image at full slot width
+                        ideal_h_in = slot_w / img_ratio
+                        ideal_h = Inches(ideal_h_in)
+                        # If ideal height is less than what we allocated, shrink fig_h
+                        # and push fig_top down (more text room or white space)
+                        if ideal_h < fig_h * 0.92:
+                            # re-center: push fig_top down a bit
+                            freed = fig_h - ideal_h
+                            fig_top = fig_top + freed * 0.3  # partial centering
+                            fig_h = ideal_h
+                    except Exception:
+                        pass
 
                 if body_h > Inches(0.05):
                     body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, body_h)

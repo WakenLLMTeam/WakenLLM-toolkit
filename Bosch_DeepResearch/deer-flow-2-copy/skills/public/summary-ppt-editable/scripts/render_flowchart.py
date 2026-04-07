@@ -298,22 +298,30 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
                     zorder=2)
         lbl = e.get("label", "")
         if lbl:
-            mx, my = (sx2 + dx2) / 2, (sy2 + dy2) / 2
-            # Offset label perpendicular to arrow direction so it clears the line
-            perp_x = -math.sin(angle)   # perpendicular unit vector
+            # Place label near the SOURCE end of the arrow (30% along),
+            # offset perpendicular to arrow direction.
+            t = 0.28   # 28% from source
+            lx_base = sx2 + t * (dx2 - sx2)
+            ly_base = sy2 + t * (dy2 - sy2)
+            perp_x = -math.sin(angle)
             perp_y =  math.cos(angle)
-            # Always push label to the "upper-left" side (perp toward +y preference)
-            if perp_y < 0:
+            # Flip perpendicular so label always goes to the RIGHT of the
+            # arrow's travel direction (consistent for TB and LR layouts).
+            # For TB (mostly vertical, angle ≈ -π/2): perp_x=-1 or +1
+            # We want the label on the right side of downward arrows.
+            if math.cos(angle) < 0:   # arrow going left → flip perp
                 perp_x, perp_y = -perp_x, -perp_y
-            offset = 0.04
-            lx = mx + perp_x * offset
-            ly = my + perp_y * offset
+            offset = 0.055
+            lx = lx_base + perp_x * offset
+            ly = ly_base + perp_y * offset
+            # ha: left if label is to the right of arrow, right if to the left
+            ha = "left" if perp_x > 0 else ("right" if perp_x < 0 else "center")
             ax.text(lx, ly, lbl,
-                    ha="center", va="center",
-                    fontsize=THEME.FS_SMALL, color=THEME.MUTED, style="italic",
+                    ha=ha, va="center",
+                    fontsize=THEME.FS_SMALL, color=THEME.INK, style="italic",
                     fontweight="bold",
                     transform=ax.transAxes,
-                    bbox=dict(facecolor=THEME.BG, edgecolor="none", pad=2),
+                    bbox=dict(facecolor=THEME.BG, edgecolor="none", pad=1.5),
                     zorder=6)
 
     # ── Nodes ─────────────────────────────────────────────────────────────────

@@ -84,19 +84,54 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
     R_branch = 0.42   # center → branch node
     R_child  = 0.82   # center → child node
 
+    # ── Pre-compute global child font size ───────────────────────────────────
+    # Find the longest child label across ALL branches, then determine the
+    # largest font size that fits within a reasonable child-node width.
+    # This gives ONE consistent font size for all child nodes.
+    all_children = [c for b in branches for c in b.get("children", [])]
+    longest_child = max(all_children, key=len) if all_children else "Label"
+    # Available width for a child node ≈ (1 - R_child) * fw * 0.85 inches
+    # (the space beyond R_child to the axes edge, with some padding)
+    avail_child_w_in = (1.0 - R_child + 0.10) * fw * 0.80
+    avail_child_h_in = 0.10 * fh            # fixed height budget in inches
+    CHILD_FS = fit_fontsize(longest_child,
+                            avail_child_w_in, avail_child_h_in,
+                            start_pt=THEME.FS_SMALL, min_pt=7.0)
+
+    # Similarly for branch labels
+    all_branch_labels = [b.get("label", "") for b in branches]
+    longest_branch = max(all_branch_labels, key=len) if all_branch_labels else "Label"
+    avail_branch_w_in = 0.28 * fw
+    avail_branch_h_in = 0.11 * fh
+    BRANCH_FS = fit_fontsize(longest_branch,
+                             avail_branch_w_in, avail_branch_h_in,
+                             start_pt=THEME.FS_BODY, min_pt=7.5)
+
+    def _text_box_size(label: str, fs: float) -> tuple:
+        """Return (width, height) in axes units for a text label at given font size."""
+        lines = label.replace("\\n", "\n").split("\n")
+        max_chars = max(len(l) for l in lines)
+        n_lines   = len(lines)
+        # Comic Sans MS is wider than average: use factor 0.62 instead of 0.55
+        char_w_in = 0.62 * fs / 72
+        line_h_in = 1.40 * fs / 72
+        w_ax = char_w_in * max_chars / fw
+        h_ax = line_h_in * n_lines  / fh
+        return w_ax, h_ax
+
     # ── Center node — size adapts to label length ────────────────────────────
     center_lines = center_label.replace("\\n", "\n").split("\n")
     max_center_chars = max(len(l) for l in center_lines)
     n_center_lines   = len(center_lines)
     # Radius: at least 0.13, grows with label
     R_c = max(0.13, max_center_chars * 0.012 + n_center_lines * 0.025)
-    center_circle = plt.Circle((0, 0), R_c, color=THEME.ACCENT,
-                                 zorder=5, ec="white", lw=1.5)
+    center_circle = plt.Circle((0, 0), R_c, color=THEME.ACCENT_LIGHT,
+                                 zorder=5, ec=THEME.ACCENT, lw=2.0)
     ax.add_patch(center_circle)
     c_fs = fit_fontsize(center_label, R_c * 2 * fw * 0.82, R_c * 2 * fh * 0.82,
                         start_pt=THEME.FS_BODY + 2, min_pt=8.0)
     ax.text(0, 0, center_label.replace("\\n", "\n"), ha="center", va="center",
-            fontsize=c_fs, color="white", fontweight="bold",
+            fontsize=c_fs, color=THEME.INK, fontweight="bold",
             zorder=6, multialignment="center")
 
     for bi, branch in enumerate(branches):
@@ -110,10 +145,10 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
         # Line: center → branch — solid black
         ax.plot([0, bx], [0, by], color="black", lw=1.8, zorder=1)
 
-        # Branch node — width adapts to label length
-        b_chars = len(label)
-        node_w = max(0.20, b_chars * 0.018 + 0.06)
-        node_h = 0.095
+        # Branch node — size derived from BRANCH_FS
+        tw, th = _text_box_size(label, BRANCH_FS)
+        node_w = max(0.20, tw * 1.20 + 0.04)
+        node_h = max(0.09, th * 1.30 + 0.02)
         rect = mpatches.FancyBboxPatch(
             (bx - node_w / 2, by - node_h / 2), node_w, node_h,
             boxstyle="round,pad=0.015",
@@ -121,11 +156,8 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             transform=ax.transData, zorder=4
         )
         ax.add_patch(rect)
-        b_fs = fit_fontsize(label, node_w * fw * 0.85, node_h * fh * 0.85,
-                             start_pt=THEME.FS_BODY)
         ax.text(bx, by, label, ha="center", va="center",
-                fontsize=b_fs, color=THEME.INK, fontweight="bold", zorder=5)
-
+                fontsize=BRANCH_FS, color=THEME.INK, fontweight="bold", zorder=5)
         # Children
         nc = len(children)
         if nc == 0:
@@ -143,10 +175,10 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             # Line: branch → child — solid black
             ax.plot([bx, cx], [by, cy], color="black",
                     lw=1.2, linestyle="-", zorder=2)
-            # Child node — width adapts to label length
-            c_chars = len(child_label)
-            child_w = max(0.18, c_chars * 0.016 + 0.05)
-            child_h = 0.072
+            # Child node — size derived from CHILD_FS
+            tw, th = _text_box_size(child_label, CHILD_FS)
+            child_w = max(0.16, tw * 1.22 + 0.04)
+            child_h = max(0.07, th * 1.30 + 0.02)
             crect = mpatches.FancyBboxPatch(
                 (cx - child_w / 2, cy - child_h / 2), child_w, child_h,
                 boxstyle="round,pad=0.012",
@@ -155,9 +187,7 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             )
             ax.add_patch(crect)
             ax.text(cx, cy, child_label, ha="center", va="center",
-                    fontsize=fit_fontsize(child_label, child_w * fw * 0.80, child_h * fh * 0.80,
-                                             start_pt=THEME.FS_SMALL),
-                    color=THEME.INK, fontweight="bold", zorder=4,
+                    fontsize=CHILD_FS, color=THEME.INK, fontweight="bold", zorder=4,
                     multialignment="center")
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

@@ -55,7 +55,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, fit_fontsize
 
 setup_matplotlib()
 
@@ -255,9 +255,19 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
     # Give nodes ~60% of the cell width and ~55% of cell height
     bw = min(0.60 / num_layers, 0.22)
     bh = min(0.52 / num_ranks,  0.20)
-    # Font size scales with box size
-    node_fs = max(THEME.FS_MICRO + 0.5,
-                  min(THEME.FS_BODY, bh * 55 - max(0, max_lines - 1) * 1.5))
+
+    # ── Dynamic font size via fit_fontsize (physical inches) ─────────────────
+    # Convert box axes-fraction → inches, then find largest pt that fits
+    bw_in = bw * fw
+    bh_in = bh * fh
+    # Longest label across all nodes drives the sizing constraint
+    longest_label = max(
+        (n.get("label", "").replace("\\n", "\n") for n in nodes),
+        key=lambda s: max(len(l) for l in s.split("\n")),
+        default="Label"
+    )
+    node_fs = fit_fontsize(longest_label, bw_in * 0.82, bh_in * 0.75,
+                           start_pt=22.0, min_pt=9.0)
 
     fig, ax = plt.subplots(figsize=(fw, fh))
     fig.patch.set_facecolor(THEME.BG)

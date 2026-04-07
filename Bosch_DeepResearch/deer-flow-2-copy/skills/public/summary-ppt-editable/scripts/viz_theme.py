@@ -38,9 +38,9 @@ def setup_matplotlib() -> None:
     matplotlib.rcParams["font.weight"] = "bold"
     matplotlib.rcParams["axes.labelweight"] = "bold"
     matplotlib.rcParams["axes.titleweight"] = "bold"
-    matplotlib.rcParams["xtick.labelsize"] = 8.5
-    matplotlib.rcParams["ytick.labelsize"] = 8.5
-    matplotlib.rcParams["axes.labelsize"] = 9.0
+    matplotlib.rcParams["xtick.labelsize"] = 11
+    matplotlib.rcParams["ytick.labelsize"] = 11
+    matplotlib.rcParams["axes.labelsize"] = 12
 
 
 # ── Design tokens ─────────────────────────────────────────────────────────────
@@ -81,13 +81,13 @@ class Theme:
     PINK         = "#fdeef6"
     PINK_BORDER  = "#d878b0"
 
-    # Font sizes (pt)
-    FS_TITLE  = 14
-    FS_H1     = 12
-    FS_H2     = 9.5
-    FS_BODY   = 8.5
-    FS_SMALL  = 7.5
-    FS_MICRO  = 6.5
+    # Font sizes (pt) — sized for 300 DPI output, readable at screen zoom
+    FS_TITLE  = 18
+    FS_H1     = 15
+    FS_H2     = 13
+    FS_BODY   = 12
+    FS_SMALL  = 11
+    FS_MICRO  = 9.5
 
     # Figure defaults
     DPI       = 300

@@ -10,7 +10,6 @@ Spec format:
 {
   "type": "pipeline",
   "title": "ADAS System Module Chain",
-  "arrow_label": "data flow",
   "stages": [
     {"label": "Raw Sensors",     "sublabel": "Camera · Radar · LiDAR", "color": "#dbeafe"},
     {"label": "Perception",      "sublabel": "Detection · Lane",        "color": "#dcfce7"},
@@ -29,7 +28,6 @@ Fields:
   stages[].sublabel  Smaller secondary text (optional)
   stages[].color     Background hex (optional, default surface)
   stages[].badge     Small top-right badge text, e.g. "ASIL-D" (optional)
-  arrow_label        Label shown above all arrows (optional)
   rows               Number of rows to wrap into (default 1)
 """
 from __future__ import annotations
@@ -71,7 +69,6 @@ def _safe_color(color: str, fallback_idx: int) -> str:
 def render_pipeline(spec: Dict[str, Any], output_path: str) -> str:
     stages: List[Dict[str, Any]] = spec.get("stages", [])
     title: Optional[str] = spec.get("title")
-    arrow_label: Optional[str] = spec.get("arrow_label")
     rows: int = max(1, int(spec.get("rows", 1)))
     accent = spec.get("accent_color", THEME.ACCENT)
     if _is_dark(accent):

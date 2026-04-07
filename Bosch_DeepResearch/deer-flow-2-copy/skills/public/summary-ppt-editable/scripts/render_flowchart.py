@@ -75,19 +75,28 @@ def _auto_layout(nodes: List[Dict], edges: List[Dict], layout: str) -> Dict[str,
     queue = [i for i in ids if indeg[i] == 0]
     layers: List[List[str]] = []
     visited: set = set()
-    while queue:
+    # Guard against cycles: track iterations to avoid infinite loop
+    max_iters = len(ids) + 1
+    iters = 0
+    while queue and iters < max_iters:
+        iters += 1
         layers.append(queue[:])
         nxt = []
         for n in queue:
             visited.add(n)
             for m in adj[n]:
-                indeg[m] -= 1
-                if indeg[m] == 0 and m not in visited:
-                    nxt.append(m)
+                if m not in visited:
+                    indeg[m] -= 1
+                    if indeg[m] == 0:
+                        nxt.append(m)
         queue = nxt
-    for i in ids:
-        if i not in visited:
-            (layers[-1] if layers else layers.append([]) or layers[-1]).append(i)
+    # Append any unvisited nodes (isolated or part of cycles) to a final layer
+    unvisited = [i for i in ids if i not in visited]
+    if unvisited:
+        if layers:
+            layers[-1].extend(unvisited)
+        else:
+            layers.append(unvisited)
 
     pos: Dict[str, Tuple[float, float]] = {}
     nl = len(layers)

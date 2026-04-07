@@ -176,6 +176,34 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
                               linewidth=0.5),
                     zorder=5)
 
+        # ── Detail text (only when n <= 5, shown beyond year badge) ──────────────
+        if show_detail:
+            detail = (stage.get("detail") or "").strip()
+            if detail:
+                detail_fs = max(THEME.FS_MICRO, anno_fs - 1.0)
+                # Place detail one step beyond year in the same spine direction
+                detail_y = label_y + label_side * (0.10 + (0.13 if year else 0.03))
+                # Wrap long detail text at ~30 chars
+                if len(detail) > 30:
+                    words = detail.split()
+                    lines, cur = [], ""
+                    for w in words:
+                        if len(cur) + len(w) + 1 > 30 and cur:
+                            lines.append(cur)
+                            cur = w
+                        else:
+                            cur = (cur + " " + w).strip()
+                    if cur:
+                        lines.append(cur)
+                    detail = "\n".join(lines)
+                ax.text(x, detail_y, detail,
+                        ha="center", va="center",
+                        fontsize=detail_fs, color=THEME.MUTED,
+                        style="italic",
+                        multialignment="center",
+                        linespacing=1.15,
+                        zorder=5)
+
     # ── Arrows between dots ───────────────────────────────────────────────────
     for i in range(n - 1):
         gap = xs[i + 1] - xs[i]

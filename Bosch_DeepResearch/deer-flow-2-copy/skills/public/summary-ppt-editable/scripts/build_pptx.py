@@ -379,6 +379,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             viz_type = (fig.get("viz") or {}).get("type", "")
             if viz_type in ("comparison", "flowchart"):
                 pos = "full"
+            elif viz_type in ("timeline", "pipeline"):
+                pos = "bottom"
             if pos not in ("right", "bottom", "full"):
                 pos = "right"
 
@@ -386,11 +388,38 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             top_body = Inches(1.35)
             full_text_w = slide_w - Inches(1.1)
 
-            # ----- Full-slide: figure spans the entire content area (comparison tables) -----
+            # ----- Full-slide: figure spans the entire content area (comparison/flowchart) -----
             if has_figure and pos == "full":
-                # Title area already drawn above; use remaining height for the figure
-                fig_top = Inches(1.20)
-                fig_h = slide_h - Inches(1.55)
+                # Optional compact summary text above the figure (1 line / short bullets)
+                summary_lines = []
+                if slide.get("bullets"):
+                    summary_lines = [(b or "").strip() for b in slide["bullets"] if (b or "").strip()]
+                elif slide.get("modules"):
+                    for mod in slide["modules"]:
+                        h = (mod.get("heading") or "").strip()
+                        if h:
+                            summary_lines.append(h)
+                has_summary = bool(summary_lines)
+                if has_summary:
+                    sum_h = Inches(0.55)
+                    sum_box = sld.shapes.add_textbox(left_margin, Inches(1.10), full_text_w, sum_h)
+                    sf = sum_box.text_frame
+                    sf.word_wrap = True
+                    first_s = True
+                    for line in summary_lines[:3]:  # at most 3 lines to keep compact
+                        sp = sf.paragraphs[0] if first_s else sf.add_paragraph()
+                        first_s = False
+                        sp.text = line
+                        sp.font.size = Pt(11)
+                        sp.font.color.rgb = body_rgb
+                        try:
+                            sp.font.name = font_body
+                        except Exception:
+                            pass
+                    fig_top = Inches(1.70)
+                else:
+                    fig_top = Inches(1.20)
+                fig_h = slide_h - fig_top - Inches(0.35)
                 fig_left = left_margin
                 fig_w = full_text_w
                 if img_path and os.path.isfile(img_path):
@@ -407,10 +436,20 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
 
             # ----- Bottom band: timeline / pipeline (text above, figure full width below) -----
             elif has_figure and pos == "bottom":
-                # 文本区限高 2.0 英寸，图片从固定位置 3.55 开始，留出 0.2 英寸间距防重叠
-                body_h = Inches(2.0)
-                fig_top = Inches(3.55)
-                fig_h = Inches(3.55)
+                # Dynamic body height: count text lines to avoid both overflow and excess whitespace
+                _content_lines = 0
+                if slide.get("modules"):
+                    for _m in slide["modules"]:
+                        if (_m.get("heading") or "").strip():
+                            _content_lines += 1
+                        _content_lines += len([b for b in (_m.get("bullets") or []) if (b or "").strip()])
+                else:
+                    _content_lines = len([b for b in (slide.get("bullets") or []) if (b or "").strip()])
+                # ~0.28in per line, clamped between 1.2 and 2.2 inches
+                body_h = Inches(max(1.2, min(2.2, 0.55 + _content_lines * 0.28)))
+                gap = Inches(0.2)
+                fig_top = Inches(1.35) + body_h + gap
+                fig_h = slide_h - fig_top - Inches(0.15)
                 body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, body_h)
                 bf = body_box.text_frame
                 bf.word_wrap = True

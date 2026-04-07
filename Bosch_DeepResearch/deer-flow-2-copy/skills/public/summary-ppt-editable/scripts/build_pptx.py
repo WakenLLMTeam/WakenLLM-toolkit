@@ -557,7 +557,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
 
             # ----- Bottom band: timeline / pipeline (text above, figure full width below) -----
             elif has_figure and pos == "bottom":
-                # Dynamic body height: count text lines to avoid both overflow and excess whitespace
+                # Count actual text lines to compute body height
                 _content_lines = 0
                 if slide.get("modules"):
                     for _m in slide["modules"]:
@@ -566,16 +566,33 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                         _content_lines += len([b for b in (_m.get("bullets") or []) if (b or "").strip()])
                 else:
                     _content_lines = len([b for b in (slide.get("bullets") or []) if (b or "").strip()])
-                # ~0.28in per line, clamped between 1.2 and 2.2 inches
-                body_h = Inches(max(1.2, min(2.2, 0.55 + _content_lines * 0.28)))
-                gap = Inches(0.2)
-                fig_top = Inches(1.35) + body_h + gap
-                fig_h = slide_h - fig_top - Inches(0.15)
-                body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, body_h)
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+
+                cap = fig.get("caption")
+                cap_h = Inches(0.35) if cap else Inches(0)
+                gap = Inches(0.15)
+
+                if _content_lines == 0:
+                    # No text content — give full remaining height to figure
+                    body_h = Inches(0)
+                    fig_top = top_body
+                else:
+                    # ~0.28in per line, clamped 0.8–2.0 inches
+                    body_h = Inches(max(0.8, min(2.0, 0.35 + _content_lines * 0.28)))
+                    fig_top = top_body + body_h + gap
+
+                # Figure height: remaining space minus caption, clamped so bottom stays within slide
+                fig_h = slide_h - fig_top - cap_h - Inches(0.1)
+                fig_h = max(fig_h, Inches(1.5))
+                # Ensure fig bottom + cap fits inside slide
+                if fig_top + fig_h + cap_h > slide_h - Inches(0.05):
+                    fig_h = slide_h - fig_top - cap_h - Inches(0.08)
+
+                if body_h > Inches(0.05):
+                    body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, body_h)
+                    bf = body_box.text_frame
+                    bf.word_wrap = True
+                    bf.vertical_anchor = MSO_ANCHOR.TOP
+                    _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
 
                 pic_w = full_text_w
                 pic_left = left_margin
@@ -589,16 +606,16 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                     tbox = sld.shapes.add_textbox(pic_left, fig_top + fig_h * 0.38, pic_w, Inches(0.85))
                     tfph = tbox.text_frame
                     tfp0 = tfph.paragraphs[0]
-                    tfp0.text = fig.get("placeholder_text") or "路线 / 时间线配图区（export PNG 与上文术语一致）"
+                    tfp0.text = fig.get("placeholder_text") or "路线 / 时间线配图区"
                     tfp0.font.size = Pt(11)
                     tfp0.font.color.rgb = body_rgb
                     tfp0.alignment = PP_ALIGN.CENTER
-                cap = fig.get("caption")
                 if cap:
-                    cb = sld.shapes.add_textbox(pic_left, fig_top + fig_h + Inches(0.06), pic_w, Inches(0.4))
+                    cap_top = fig_top + fig_h + Inches(0.04)
+                    cb = sld.shapes.add_textbox(pic_left, cap_top, pic_w, cap_h)
                     ctf = cb.text_frame
                     cp = ctf.paragraphs[0]
-                    cp.text = str(cap)
+                    cp.text = _truncate(str(cap), 60)
                     cp.font.size = Pt(10)
                     cp.font.color.rgb = body_rgb
                     cp.alignment = PP_ALIGN.CENTER

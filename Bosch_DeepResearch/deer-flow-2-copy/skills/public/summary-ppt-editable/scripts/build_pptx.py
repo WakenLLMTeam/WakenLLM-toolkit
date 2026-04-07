@@ -130,6 +130,115 @@ def _render_slide_body(text_frame, slide: Dict[str, Any], *, font_name: str, bod
         _add_bullets(text_frame, slide.get("bullets") or [], font_name=font_name, body_rgb=body_rgb, size_pt=16)
 
 
+def _add_cards(
+    sld,
+    cards: List[Dict[str, Any]],
+    *,
+    left: Any,
+    top: Any,
+    total_w: Any,
+    total_h: Any,
+    font_name: str,
+    body_rgb: RGBColor,
+    heading_rgb: RGBColor,
+    accent_rgb: RGBColor,
+    card_bg_rgb: Optional[RGBColor] = None,
+    cols: int = 0,
+) -> None:
+    """Render a list of cards as a grid of bordered text boxes.
+
+    Each card dict supports:
+      heading   – str, bold header shown at top of card (optional)
+      bullets   – list[str], bullet lines (optional)
+      icon      – str, single emoji / symbol prepended to heading (optional)
+      bg_rgb    – list[int, int, int], per-card background override (optional)
+
+    Layout is auto-computed:
+      cols=0  → auto: 1→1 col, 2→2, 3→3, 4→2×2, 5-6→3 cols, 7+→3 cols
+    """
+    n = len(cards)
+    if n == 0:
+        return
+
+    if cols <= 0:
+        if n <= 1:
+            cols = 1
+        elif n == 2:
+            cols = 2
+        elif n <= 3:
+            cols = 3
+        elif n == 4:
+            cols = 2
+        else:
+            cols = 3
+    rows = (n + cols - 1) // cols
+
+    gap = Inches(0.12)
+    card_w = (total_w - gap * (cols - 1)) / cols
+    card_h = (total_h - gap * (rows - 1)) / rows
+
+    default_bg = card_bg_rgb or RGBColor(245, 247, 250)
+
+    for idx, card in enumerate(cards):
+        col_i = idx % cols
+        row_i = idx // cols
+        cx = left + col_i * (card_w + gap)
+        cy = top + row_i * (card_h + gap)
+
+        bg = card.get("bg_rgb")
+        bg_color = RGBColor(int(bg[0]), int(bg[1]), int(bg[2])) if bg and len(bg) == 3 else default_bg
+        rect = sld.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, card_w, card_h)
+        rect.fill.solid()
+        rect.fill.fore_color.rgb = bg_color
+        rect.line.color.rgb = accent_rgb
+        rect.line.width = Pt(1.0)
+        rect.adjustments[0] = 0.05
+
+        bar_h = Inches(0.055)
+        bar = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, card_w, bar_h)
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = accent_rgb
+        bar.line.fill.background()
+
+        pad_x = Inches(0.16)
+        pad_y = Inches(0.18)
+        tb = sld.shapes.add_textbox(cx + pad_x, cy + bar_h + pad_y, card_w - pad_x * 2, card_h - bar_h - pad_y * 2)
+        tf = tb.text_frame
+        tf.word_wrap = True
+
+        first = True
+        heading = (card.get("heading") or "").strip()
+        icon = (card.get("icon") or "").strip()
+        if heading:
+            label = f"{icon}  {heading}" if icon else heading
+            p = tf.paragraphs[0] if first else tf.add_paragraph()
+            first = False
+            p.text = label
+            p.font.bold = True
+            p.font.size = Pt(13)
+            p.font.color.rgb = heading_rgb
+            p.space_after = Pt(5)
+            try:
+                p.font.name = font_name
+            except Exception:
+                pass
+
+        for line in (card.get("bullets") or []):
+            line = (line or "").strip()
+            if not line:
+                continue
+            p = tf.paragraphs[0] if first else tf.add_paragraph()
+            first = False
+            p.text = f"• {line}"
+            p.font.size = Pt(11)
+            p.font.color.rgb = body_rgb
+            p.space_after = Pt(4)
+            try:
+                p.font.name = font_name
+            except Exception:
+                pass
+
+
 def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RGBColor, size_pt: int) -> None:
     lines = [((x or "").strip()) for x in bullets if (x or "").strip()]
     if not lines:
@@ -219,7 +328,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             except Exception:
                 pass
         else:
-            # content | summary
+            # content | summary | cards
             title_h = Inches(0.95)
             tb = sld.shapes.add_textbox(Inches(0.55), Inches(0.35), slide_w - Inches(1.1), title_h)
             tfp = tb.text_frame
@@ -233,6 +342,34 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 pp.font.name = font_title
             except Exception:
                 pass
+
+            # ── Cards layout ──────────────────────────────────────────────
+            cards = slide.get("cards")
+            if cards and isinstance(cards, list):
+                left_margin = Inches(0.55)
+                top_body = Inches(1.35)
+                _add_cards(
+                    sld,
+                    cards,
+                    left=left_margin,
+                    top=top_body,
+                    total_w=slide_w - Inches(1.1),
+                    total_h=slide_h - top_body - Inches(0.25),
+                    font_name=font_body,
+                    body_rgb=body_rgb,
+                    heading_rgb=title_rgb,
+                    accent_rgb=accent,
+                    cols=int(slide.get("cards_cols", 0)),
+                )
+                # Notes
+                notes = slide.get("notes")
+                if notes:
+                    try:
+                        ns = sld.notes_slide
+                        ns.notes_text_frame.text = str(notes)[:300]
+                    except Exception:
+                        pass
+                continue  # skip figure logic below for cards slides
 
             fig = slide.get("figure") or {}
             img_path = fig.get("image_path") or ""

@@ -23,6 +23,50 @@ A complete **agent toolkit** for generating information-dense `.pptx` presentati
 | `comparison` | Feature matrix table with accent-highlighted column | Side-by-side capability diff |
 | `pipeline` | Horizontal block diagram with step numbers, sublabels, badges | Module chains, data pipelines |
 
+### Cards layout (text structure)
+
+When a slide has a `cards` field, the content area is divided into **individual bordered boxes**, one per card, arranged in a grid. Each card has:
+- An accent-colored top bar
+- A bold heading (with optional icon/emoji prefix)
+- Bullet lines below
+
+This is the recommended layout when a slide has **multiple parallel topics** that should be visually separated (e.g. 3 technology pillars, 4 business dimensions, 6 key findings).
+
+```json
+{
+  "slide_number": 3,
+  "type": "content",
+  "title": "三大核心能力",
+  "cards": [
+    {
+      "heading": "感知层",
+      "icon": "👁",
+      "bullets": ["多模态融合", "实时目标检测", "语义分割"]
+    },
+    {
+      "heading": "决策层",
+      "icon": "🧠",
+      "bullets": ["行为预测", "路径规划", "风险评估"]
+    },
+    {
+      "heading": "执行层",
+      "icon": "⚙️",
+      "bullets": ["精准控制", "冗余制动", "故障自检"]
+    }
+  ],
+  "cards_cols": 3
+}
+```
+
+`cards_cols` is optional (0 or omitted = auto):
+- 1 card → 1 column
+- 2 cards → 2 columns
+- 3 cards → 3 columns (default for 3)
+- 4 cards → 2×2 grid
+- 5–6 cards → 3 columns (2 rows)
+
+Each card also supports `bg_rgb: [r, g, b]` to override the card background color per card.
+
 ---
 
 ## Usage modes

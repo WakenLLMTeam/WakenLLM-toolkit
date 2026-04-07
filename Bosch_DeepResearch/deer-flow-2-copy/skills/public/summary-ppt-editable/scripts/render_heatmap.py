@@ -98,7 +98,7 @@ def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",
-                 fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold")
+                 fontsize=THEME.FS_TITLE, color=THEME.INK, fontweight="bold")
 
     plt.tight_layout(rect=[0, 0, 1, 0.94 if title else 1.0], pad=0.5)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

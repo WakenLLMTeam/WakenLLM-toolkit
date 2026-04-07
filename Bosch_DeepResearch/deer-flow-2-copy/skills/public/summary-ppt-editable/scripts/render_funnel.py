@@ -119,7 +119,7 @@ def render_funnel(spec: Dict[str, Any], output_path: str) -> str:
 
     if title:
         fig.text(0.5, 0.98, title, ha="center", va="top",
-                 fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold")
+                 fontsize=THEME.FS_TITLE, color=THEME.INK, fontweight="bold")
 
     plt.tight_layout(rect=[0, 0, 1, 0.95])
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

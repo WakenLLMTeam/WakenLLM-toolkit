@@ -93,10 +93,10 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
 
     # Axis labels
     ax.text(0.5, 0.01, x_label, ha="center", va="bottom",
-            fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
+            fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
             transform=ax.transAxes)
     ax.text(0.01, 0.5, y_label, ha="left", va="center",
-            fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
+            fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
             rotation=90, transform=ax.transAxes)
 
     # Plot items
@@ -115,7 +115,7 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",
-                 fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold")
+                 fontsize=THEME.FS_TITLE, color=THEME.INK, fontweight="bold")
 
     plt.tight_layout(rect=[0, 0, 1, 0.95 if title else 1.0])
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

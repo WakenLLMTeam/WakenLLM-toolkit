@@ -82,8 +82,8 @@ class Theme:
     PINK_BORDER  = "#d878b0"
 
     # Font sizes (pt)
-    FS_TITLE  = 13
-    FS_H1     = 11
+    FS_TITLE  = 14
+    FS_H1     = 12
     FS_H2     = 9.5
     FS_BODY   = 8.5
     FS_SMALL  = 7.5

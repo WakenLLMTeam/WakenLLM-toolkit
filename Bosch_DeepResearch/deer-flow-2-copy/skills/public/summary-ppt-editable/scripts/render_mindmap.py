@@ -77,18 +77,20 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
     n = len(branches)
     # Distribute branches evenly, starting from top
     base_angles = [math.pi / 2 - 2 * math.pi * i / n for i in range(n)]
+    # Max safe spread = half the angle between adjacent branches, with a cap
+    branch_gap = 2 * math.pi / max(n, 1)
+    max_spread = branch_gap * 0.38   # never use more than 38% of branch gap
 
-    R_branch = 0.42   # center → branch node
-    R_child  = 0.72   # center → child node
+    R_branch = 0.40   # center → branch node
+    R_child  = 0.78   # center → child node (larger = more room for labels)
 
     # Draw center node
     center_circle = plt.Circle((0, 0), 0.13, color=THEME.ACCENT,
                                  zorder=5, ec="white", lw=1.5)
     ax.add_patch(center_circle)
     ax.text(0, 0, center_label, ha="center", va="center",
-            fontsize=THEME.FS_BODY, color="white", fontweight="bold",
-            zorder=6, multialignment="center",
-            wrap=True)
+            fontsize=THEME.FS_BODY + 1, color="white", fontweight="bold",
+            zorder=6, multialignment="center")
 
     for bi, branch in enumerate(branches):
         angle = base_angles[bi]
@@ -101,24 +103,28 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
         # Line: center → branch
         ax.plot([0, bx], [0, by], color=THEME.BORDER, lw=1.5, zorder=1)
 
-        # Branch node (rounded rectangle via FancyBboxPatch)
-        node_w, node_h = 0.20, 0.09
+        # Branch node
+        node_w, node_h = 0.22, 0.095
         rect = mpatches.FancyBboxPatch(
             (bx - node_w / 2, by - node_h / 2), node_w, node_h,
             boxstyle="round,pad=0.015",
-            facecolor=color, edgecolor=THEME.ACCENT, linewidth=1.2,
+            facecolor=color, edgecolor=THEME.ACCENT, linewidth=1.5,
             transform=ax.transData, zorder=4
         )
         ax.add_patch(rect)
         ax.text(bx, by, label, ha="center", va="center",
-                fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold", zorder=5)
+                fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold", zorder=5)
 
         # Children
         nc = len(children)
         if nc == 0:
             continue
-        # Spread children around the branch angle, ±spread
-        spread = math.pi / 6 if nc <= 2 else math.pi / 4
+        # Constrain spread so children of adjacent branches never overlap
+        if nc == 1:
+            spread = 0.0
+        else:
+            ideal = math.pi / 6 if nc <= 2 else math.pi / 5
+            spread = min(ideal, max_spread)
         child_angles = [angle + spread * (i - (nc - 1) / 2) for i in range(nc)]
         for ci, (child_label, cangle) in enumerate(zip(children, child_angles)):
             cx = R_child * math.cos(cangle)
@@ -127,7 +133,7 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             ax.plot([bx, cx], [by, cy], color=color,
                     lw=1.0, linestyle="--", zorder=2, alpha=0.8)
             # Child node (small pill)
-            child_w, child_h = 0.18, 0.065
+            child_w, child_h = 0.20, 0.070
             crect = mpatches.FancyBboxPatch(
                 (cx - child_w / 2, cy - child_h / 2), child_w, child_h,
                 boxstyle="round,pad=0.012",
@@ -136,7 +142,7 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             )
             ax.add_patch(crect)
             ax.text(cx, cy, child_label, ha="center", va="center",
-                    fontsize=THEME.FS_MICRO + 0.5, color=THEME.INK, zorder=4,
+                    fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold", zorder=4,
                     multialignment="center")
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

@@ -210,24 +210,26 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
-    # ── Edges ─────────────────────────────────────────────────────────────────
+    # ── Edges (draw BEFORE nodes so arrows go under node shapes) ─────────────
     for e in edges:
         sx, sy = pos.get(e.get("from", ""), (0, 0))
         dx, dy = pos.get(e.get("to", ""), (0, 0))
         if (sx, sy) == (0, 0) or (dx, dy) == (0, 0):
             continue
         angle = math.atan2(dy - sy, dx - sx)
-        sx2 = sx + math.cos(angle) * bw / 2
-        sy2 = sy + math.sin(angle) * bh / 2
-        dx2 = dx - math.cos(angle) * bw / 2
-        dy2 = dy - math.sin(angle) * bh / 2
+        # Add extra padding so arrow starts/ends clearly outside the node boundary
+        pad = 0.012
+        sx2 = sx + math.cos(angle) * (bw / 2 + pad)
+        sy2 = sy + math.sin(angle) * (bh / 2 + pad)
+        dx2 = dx - math.cos(angle) * (bw / 2 + pad)
+        dy2 = dy - math.sin(angle) * (bh / 2 + pad)
 
         ax.annotate("",
                     xy=(dx2, dy2), xytext=(sx2, sy2),
                     xycoords="axes fraction", textcoords="axes fraction",
                     arrowprops=dict(arrowstyle="-|>", color=THEME.ACCENT,
                                     lw=1.5, mutation_scale=13),
-                    zorder=5)
+                    zorder=2)
         lbl = e.get("label", "")
         if lbl:
             mx, my = (sx2 + dx2) / 2, (sy2 + dy2) / 2
@@ -236,7 +238,7 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
                     fontsize=THEME.FS_SMALL, color=THEME.MUTED, style="italic",
                     transform=ax.transAxes,
                     bbox=dict(facecolor=THEME.BG, edgecolor="none", pad=1),
-                    zorder=6)
+                    zorder=3)
 
     # ── Nodes ─────────────────────────────────────────────────────────────────
     for n in nodes:

@@ -12,27 +12,34 @@ Spec format:
   "title": "L3 ODD Decision Flow",
   "layout": "TB",
   "nodes": [
-    {"id": "s",    "label": "Perception\nFusion",       "shape": "rect",    "color": "#dbeafe"},
-    {"id": "odd",  "label": "ODD Boundary\nCheck",      "shape": "diamond", "color": "#fef9c3"},
-    {"id": "plan", "label": "Path Planning",             "shape": "rect",    "color": "#dcfce7"},
-    {"id": "tor",  "label": "Takeover Request\n(TOR)",  "shape": "rect",    "color": "#fee2e2"},
-    {"id": "mrc",  "label": "Minimal Risk\nCondition",  "shape": "rounded", "color": "#fce7f3"},
-    {"id": "ctrl", "label": "Execution\nControl",        "shape": "rect",    "color": "#ede9fe"}
+    {"id": "start",  "label": "Start",              "shape": "terminal", "color": "#1e3a5f"},
+    {"id": "input",  "label": "Read Sensor Data",   "shape": "parallelogram", "color": "#dbeafe"},
+    {"id": "proc",   "label": "Fuse & Classify",    "shape": "rect",     "color": "#dcfce7"},
+    {"id": "decide", "label": "ODD Boundary\nCheck","shape": "diamond",  "color": "#fef9c3"},
+    {"id": "sub",    "label": "Run Sub-routine",    "shape": "rounded",  "color": "#ede9fe"},
+    {"id": "end",    "label": "End",                "shape": "terminal", "color": "#1e3a5f"}
   ],
   "edges": [
-    {"from": "s",    "to": "odd"},
-    {"from": "odd",  "to": "plan", "label": "within ODD"},
-    {"from": "odd",  "to": "tor",  "label": "ODD exit"},
-    {"from": "tor",  "to": "mrc",  "label": "timeout"},
-    {"from": "plan", "to": "ctrl"},
-    {"from": "mrc",  "to": "ctrl"}
+    {"from": "start",  "to": "input"},
+    {"from": "input",  "to": "proc"},
+    {"from": "proc",   "to": "decide"},
+    {"from": "decide", "to": "sub",  "label": "Yes"},
+    {"from": "decide", "to": "end",  "label": "No"},
+    {"from": "sub",    "to": "end"}
   ],
   "fig_width": 11,
   "fig_height": 6
 }
 
-Shapes: "rect" | "diamond" | "rounded"
+Shape semantics (standard flowchart convention):
+  "terminal"      Oval/stadium  — Start / End node (use dark color for contrast)
+  "rect"          Rectangle     — Process step / operation
+  "diamond"       Diamond       — Decision / condition (Yes/No branch)
+  "rounded"       Round-rect    — Sub-process / predefined process
+  "parallelogram" Parallelogram — Input / Output data
+
 Layout: "LR" (left-to-right) | "TB" (top-to-bottom)
+Edge labels: use "Yes"/"No" on edges from diamond nodes for clarity
 """
 from __future__ import annotations
 import argparse
@@ -117,26 +124,52 @@ def _draw_node(ax, x, y, label, shape, color, bw, bh, fontsize=None):
     bg = color or THEME.SURFACE
     if _is_dark(bg):
         bg = THEME.SURFACE
-    # Shadow
-    if shape == "diamond":
-        pts = np.array([
+    text_color = THEME.INK
+
+    if shape == "terminal":
+        # Oval / stadium shape — Start / End
+        # Use a wide rounded rectangle that looks like a stadium/pill
+        bg_use = color or THEME.ACCENT
+        # Detect if it's a dark fill → use white text
+        h = bg_use.lstrip("#")
+        if len(h) == 6:
+            r2, g2, b2 = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+            text_color = "white" if (0.299*r2 + 0.587*g2 + 0.114*b2) < 160 else THEME.INK
+        # Shadow
+        ax.add_patch(FancyBboxPatch(
+            (x - bw / 2 + 0.003, y - bh / 2 - 0.003), bw, bh,
+            boxstyle=f"round,pad={bh*0.40:.3f}",
+            facecolor="#00000015", edgecolor="none",
+            transform=ax.transAxes, zorder=2))
+        # Main pill shape
+        ax.add_patch(FancyBboxPatch(
+            (x - bw / 2, y - bh / 2), bw, bh,
+            boxstyle=f"round,pad={bh*0.40:.3f}",
+            facecolor=bg_use, edgecolor="white" if text_color == "white" else THEME.BORDER,
+            linewidth=1.5, transform=ax.transAxes, zorder=3))
+
+    elif shape == "diamond":
+        # Decision node — rhombus
+        pts_shadow = np.array([
             [x + 0.003, y + bh * 0.65],
             [x + bw * 0.58, y],
             [x + 0.003, y - bh * 0.65],
             [x - bw * 0.55, y],
         ])
-        ax.add_patch(plt.Polygon(pts, closed=True, facecolor="#00000015",
+        ax.add_patch(plt.Polygon(pts_shadow, closed=True, facecolor="#00000015",
                                  edgecolor="none", transform=ax.transAxes, zorder=2))
-        pts2 = np.array([
-            [x, y + bh * 0.65],
+        pts = np.array([
+            [x,           y + bh * 0.65],
             [x + bw * 0.58, y],
-            [x, y - bh * 0.65],
+            [x,           y - bh * 0.65],
             [x - bw * 0.58, y],
         ])
-        ax.add_patch(plt.Polygon(pts2, closed=True, facecolor=bg,
+        ax.add_patch(plt.Polygon(pts, closed=True, facecolor=bg,
                                  edgecolor=THEME.BORDER, linewidth=1.2,
                                  transform=ax.transAxes, zorder=3))
+
     elif shape == "rounded":
+        # Sub-process — rounded rectangle
         ax.add_patch(FancyBboxPatch(
             (x - bw / 2 + 0.003, y - bh / 2 - 0.003), bw, bh,
             boxstyle="round,pad=0.025", facecolor="#00000015",
@@ -144,9 +177,32 @@ def _draw_node(ax, x, y, label, shape, color, bw, bh, fontsize=None):
         ax.add_patch(FancyBboxPatch(
             (x - bw / 2, y - bh / 2), bw, bh,
             boxstyle="round,pad=0.025", facecolor=bg,
-            edgecolor=THEME.BORDER, linewidth=1.2,
+            edgecolor=THEME.ACCENT, linewidth=1.5,   # accent border = predefined process
             transform=ax.transAxes, zorder=3))
+
+    elif shape == "parallelogram":
+        # Input / Output — slanted rectangle
+        skew = bw * 0.18   # horizontal skew offset
+        pts_shadow = np.array([
+            [x - bw/2 + skew + 0.003, y + bh/2 - 0.003],
+            [x + bw/2 + skew + 0.003, y + bh/2 - 0.003],
+            [x + bw/2 - skew + 0.003, y - bh/2 - 0.003],
+            [x - bw/2 - skew + 0.003, y - bh/2 - 0.003],
+        ])
+        ax.add_patch(plt.Polygon(pts_shadow, closed=True, facecolor="#00000015",
+                                 edgecolor="none", transform=ax.transAxes, zorder=2))
+        pts = np.array([
+            [x - bw/2 + skew, y + bh/2],
+            [x + bw/2 + skew, y + bh/2],
+            [x + bw/2 - skew, y - bh/2],
+            [x - bw/2 - skew, y - bh/2],
+        ])
+        ax.add_patch(plt.Polygon(pts, closed=True, facecolor=bg,
+                                 edgecolor=THEME.BORDER, linewidth=1.2,
+                                 transform=ax.transAxes, zorder=3))
+
     else:
+        # Default: rect — process step
         ax.add_patch(FancyBboxPatch(
             (x - bw / 2 + 0.003, y - bh / 2 - 0.003), bw, bh,
             boxstyle="square,pad=0.0", facecolor="#00000015",
@@ -160,7 +216,7 @@ def _draw_node(ax, x, y, label, shape, color, bw, bh, fontsize=None):
     ax.text(x, y, label.replace("\\n", "\n"),
             ha="center", va="center",
             fontsize=fontsize if fontsize is not None else THEME.FS_BODY,
-            color=THEME.INK, fontweight="bold",
+            color=text_color, fontweight="bold",
             transform=ax.transAxes, zorder=4,
             multialignment="center", linespacing=1.2)
 

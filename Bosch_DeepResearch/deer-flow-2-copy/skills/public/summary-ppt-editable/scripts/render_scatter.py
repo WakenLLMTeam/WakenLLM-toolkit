@@ -75,20 +75,31 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_axisbelow(True)
 
     all_x, all_y = [], []
+    # Collect actual point colors for legend (use first point per series)
+    series_colors = []
+    for si, ser in enumerate(series):
+        pts = ser.get("points", [])
+        c = pts[0].get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)]) if pts else _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)]
+        series_colors.append(c)
+
+    import math as _math
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
             color = pt.get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)])
-            size = pt.get("size", 150)
-            x, y = pt.get("x", 0), pt.get("y", 0)
+            size  = pt.get("size", 150)
+            x, y  = pt.get("x", 0), pt.get("y", 0)
             all_x.append(x)
             all_y.append(y)
             ax.scatter([x], [y], s=size, color=color, alpha=0.82,
                        edgecolors="white", linewidths=1.2, zorder=4)
             lbl = pt.get("label", "")
             if lbl:
-                ax.annotate(lbl, xy=(x, y), xytext=(6, 4),
+                # Offset label beyond circle edge (radius ≈ sqrt(size)/2 display pts)
+                radius_pts = _math.sqrt(size) / 2 + 5
+                ax.annotate(lbl, xy=(x, y), xytext=(radius_pts, 2),
                             textcoords="offset points",
-                            fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
+                            fontsize=THEME.FS_SMALL, color=THEME.INK,
+                            fontweight="bold", clip_on=False, zorder=6)
 
     # Quadrant lines at midpoints
     if all_x and all_y and quadrant_labels:
@@ -119,9 +130,8 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     if len(series) > 1:
         handles = []
         for si, ser in enumerate(series):
-            color = _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)]
             handles.append(plt.Line2D([0], [0], marker="o", color="w",
-                                      markerfacecolor=color, markersize=8,
+                                      markerfacecolor=series_colors[si], markersize=9,
                                       label=ser.get("name", "")))
         ax.legend(handles=handles, fontsize=THEME.FS_SMALL, frameon=True,
                   framealpha=0.92, edgecolor=THEME.BORDER,

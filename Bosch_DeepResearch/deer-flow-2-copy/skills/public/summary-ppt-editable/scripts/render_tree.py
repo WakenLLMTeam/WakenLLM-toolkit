@@ -82,6 +82,15 @@ def _assign_positions(node: Dict, depth: int, pos_counter: List[float],
     node["_id"] = node_id
 
 
+def _all_nodes(node: Dict) -> List[Dict]:
+    """Flatten all descendants."""
+    result = []
+    for child in node.get("children", []):
+        result.append(child)
+        result.extend(_all_nodes(child))
+    return result
+
+
 def render_tree(spec: Dict[str, Any], output_path: str) -> str:
     title: Optional[str] = spec.get("title")
     root: Dict[str, Any] = spec.get("root", {})
@@ -99,58 +108,69 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
     n_leaves = pos_counter[0]
     max_depth = max(v[1] for v in positions.values())
 
+    # Use data coordinates for symmetric layout
+    pad_x = 0.6
+    pad_y = 0.7
     fig, ax = plt.subplots(figsize=(fw, fh))
     fig.patch.set_facecolor(THEME.BG)
     ax.set_facecolor(THEME.BG)
     ax.axis("off")
+    ax.set_xlim(-pad_x, max(n_leaves - 1, 0) + pad_x)
+    ax.set_ylim(-pad_y, max_depth + pad_y)
+    ax.set_aspect("auto")
 
-    # Normalize positions to [margin, 1-margin] so nodes don't touch edges
-    MARGIN_X = 0.06
-    MARGIN_Y = 0.10   # extra bottom/top margin prevents leaf nodes being clipped
-    def norm(x, y):
-        nx = MARGIN_X + (1 - 2 * MARGIN_X) * x / max(n_leaves - 1, 1)
-        ny = 1.0 - MARGIN_Y - (1 - 2 * MARGIN_Y) * y / max(max_depth, 1)
+    def get_data_pos(raw_x, raw_y):
         if direction == "LR":
-            return ny, nx
-        return nx, ny
+            return float(max_depth - raw_y), float(n_leaves - 1 - raw_x)
+        return float(raw_x), float(max_depth - raw_y)
 
-    # Node sizes: scale with number of leaves / depth
-    node_w = min(0.15, (1 - 2 * MARGIN_X - 0.02) / max(n_leaves, 1))
-    node_h = min(0.09, (1 - 2 * MARGIN_Y - 0.02) / max(max_depth + 1, 1))
+    # Node box size (data units) — adaptive to figure and tree size
+    all_nd = [root] + _all_nodes(root)
+    max_lbl_len = max((len(str(n.get("label", "x"))) for n in all_nd), default=4)
+    x_span = max(n_leaves - 1, 1) + 2 * pad_x
+    y_span = max(max_depth, 1) + 2 * pad_y
+    # physical size per data unit (approx)
+    px_per_xu = fw / x_span
+    py_per_yu = fh / y_span
+    nw = min(px_per_xu * 0.80, 1.6) / px_per_xu * (fw / fw)   # in data units
+    nw = min(0.80 / (x_span / max(n_leaves,1)), x_span * 0.12)
+    nh = min(0.45 / (y_span / max(max_depth+1,1)), y_span * 0.09)
+    nw = max(nw, 0.20)
+    nh = max(nh, 0.10)
+
+    # Adaptive font
+    fs_root = max(THEME.FS_SMALL, min(THEME.FS_H2, 11.0 - max_lbl_len * 0.15))
+    fs_node = max(THEME.FS_MICRO + 1, fs_root - 1.5)
 
     def _draw_node(node: Dict, ax) -> None:
         nid = node["_id"]
         raw_x, raw_y = positions[nid]
-        nx, ny = norm(raw_x, raw_y)
+        dx, dy = get_data_pos(raw_x, raw_y)
 
         color = node.get("color", THEME.SURFACE)
         label = node.get("label", "")
-        is_root = nid == "0"
-
+        is_root = (nid == "0")
         border_color = THEME.ACCENT if is_root else THEME.BORDER
-        lw = 1.5 if is_root else 0.9
+        lw = 2.0 if is_root else 1.2
+
         rect = mpatches.FancyBboxPatch(
-            (nx - node_w / 2, ny - node_h / 2), node_w, node_h,
-            boxstyle="round,pad=0.012",
+            (dx - nw / 2, dy - nh / 2), nw, nh,
+            boxstyle="round,pad=0.025",
             facecolor=color, edgecolor=border_color, linewidth=lw,
-            transform=ax.transAxes, zorder=4
+            zorder=4
         )
         ax.add_patch(rect)
-        fs = THEME.FS_BODY if is_root else THEME.FS_SMALL
-        ax.text(nx, ny, label, ha="center", va="center",
-                fontsize=fs, color=THEME.INK,
-                fontweight="bold",
-                transform=ax.transAxes, zorder=5,
-                multialignment="center")
+        ax.text(dx, dy, label, ha="center", va="center",
+                fontsize=fs_root if is_root else fs_node,
+                color=THEME.INK, fontweight="bold",
+                zorder=5, multialignment="center")
 
         for ci, child in enumerate(node.get("children", [])):
             cid = f"{nid}_{ci}"
             crx, cry = positions[cid]
-            cnx, cny = norm(crx, cry)
-            # Draw edge
-            ax.plot([nx, cnx], [ny - node_h / 2, cny + node_h / 2],
-                    color=THEME.BORDER, lw=0.9, zorder=2,
-                    transform=ax.transAxes)
+            cdx, cdy = get_data_pos(crx, cry)
+            ax.plot([dx, cdx], [dy - nh / 2, cdy + nh / 2],
+                    color=THEME.BORDER, lw=1.0, zorder=2)
             _draw_node(child, ax)
 
     _draw_node(root, ax)

@@ -110,10 +110,19 @@ def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
                         va="center", ha="left",
                         fontsize=THEME.FS_SMALL, color=color, fontweight="bold")
 
+    # Extend x-axis right margin so end-of-line annotations don't get clipped
+    if series:
+        max_label_len = max(
+            len(f"{s.get('values', [0])[-1]:g} {unit}") if s.get('values') else 0
+            for s in series
+        )
+        x_pad = max(0.3, max_label_len * 0.055)
+        ax.set_xlim(x[0] - 0.3, x[-1] + x_pad)
+
     ax.set_xticks(x)
-    ax.set_xticklabels(x_labels, fontsize=THEME.FS_SMALL, color=THEME.INK)
+    ax.set_xticklabels(x_labels, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
     if unit and not log_scale:
-        ax.set_ylabel(unit, fontsize=THEME.FS_SMALL, color=THEME.MUTED)
+        ax.set_ylabel(unit, fontsize=THEME.FS_SMALL, color=THEME.MUTED, fontweight='bold')
 
     if len(series) > 1:
         ax.legend(fontsize=THEME.FS_SMALL, frameon=True, framealpha=0.9,

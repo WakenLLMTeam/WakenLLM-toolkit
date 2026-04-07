@@ -34,6 +34,13 @@ def setup_matplotlib() -> None:
     matplotlib.rcParams["font.family"] = [CJK_FONT, "DejaVu Sans", "sans-serif"]
     matplotlib.rcParams["axes.unicode_minus"] = False
     matplotlib.rcParams["figure.dpi"] = 150
+    # Bold everything by default
+    matplotlib.rcParams["font.weight"] = "bold"
+    matplotlib.rcParams["axes.labelweight"] = "bold"
+    matplotlib.rcParams["axes.titleweight"] = "bold"
+    matplotlib.rcParams["xtick.labelsize"] = 8.5
+    matplotlib.rcParams["ytick.labelsize"] = 8.5
+    matplotlib.rcParams["axes.labelsize"] = 9.0
 
 
 # ── Design tokens ─────────────────────────────────────────────────────────────

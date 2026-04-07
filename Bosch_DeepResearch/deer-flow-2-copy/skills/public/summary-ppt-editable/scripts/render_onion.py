@@ -79,25 +79,28 @@ def render_onion(spec: Dict[str, Any], output_path: str) -> str:
             zorder=n + 6)
 
     # Labels on rings: alternate left/right
-    for i, layer in enumerate(layers):
+    # Distribute labels evenly around the rings to avoid overlap
+    # Each ring gets its own angle, spread around the circle
+    label_angles = [math.pi * 0.20 + math.pi * 2 * i / max(n, 1) for i in range(n)]
+    for i, (layer, angle) in enumerate(zip(layers, label_angles)):
         r_mid = r_center + (i + 0.5) * ring_w
         label = layer.get("label", "")
         desc = layer.get("description", "")
 
-        # Angle: alternate top/bottom halves for readability
-        angle = math.pi * 0.25 if i % 2 == 0 else math.pi * 0.75
-        lx = r_mid * math.cos(angle) * 0.7
-        ly = r_mid * math.sin(angle) * 0.7
+        # Place label at ~75% of ring radius along the angle
+        lx = r_mid * 0.72 * math.cos(angle)
+        ly = r_mid * 0.72 * math.sin(angle)
+        ha = "left" if lx > 0.05 else ("right" if lx < -0.05 else "center")
 
         ax.text(lx, ly, label,
-                ha="center", va="center",
+                ha=ha, va="center",
                 fontsize=THEME.FS_SMALL, color=THEME.INK,
                 fontweight="bold", zorder=n + 3)
         if desc:
-            ax.text(lx, ly - 0.065, desc,
-                    ha="center", va="center",
+            ax.text(lx, ly - 0.07, desc,
+                    ha=ha, va="center",
                     fontsize=THEME.FS_MICRO, color=THEME.MUTED,
-                    zorder=n + 3)
+                    fontweight="bold", zorder=n + 3)
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

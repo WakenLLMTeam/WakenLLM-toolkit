@@ -67,7 +67,9 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_color(THEME.BORDER)
     ax.spines["bottom"].set_color(THEME.BORDER)
-    ax.tick_params(colors=THEME.MUTED, labelsize=THEME.FS_SMALL)
+    ax.tick_params(colors=THEME.INK, labelsize=THEME.FS_SMALL)
+    for lbl in ax.get_xticklabels() + ax.get_yticklabels():
+        lbl.set_fontweight("bold")
     ax.yaxis.grid(True, color=THEME.BORDER, linewidth=0.5, linestyle="--", alpha=0.6)
     ax.xaxis.grid(True, color=THEME.BORDER, linewidth=0.5, linestyle="--", alpha=0.6)
     ax.set_axisbelow(True)
@@ -111,8 +113,8 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
                 ax.text(qx, qy, ql, fontsize=THEME.FS_SMALL,
                         color=THEME.MUTED, style="italic", alpha=0.7)
 
-    ax.set_xlabel(x_label, fontsize=THEME.FS_SMALL, color=THEME.MUTED)
-    ax.set_ylabel(y_label, fontsize=THEME.FS_SMALL, color=THEME.MUTED)
+    ax.set_xlabel(x_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
+    ax.set_ylabel(y_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
 
     if len(series) > 1:
         handles = []
@@ -122,7 +124,8 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
                                       markerfacecolor=color, markersize=8,
                                       label=ser.get("name", "")))
         ax.legend(handles=handles, fontsize=THEME.FS_SMALL, frameon=True,
-                  framealpha=0.9, edgecolor=THEME.BORDER)
+                  framealpha=0.92, edgecolor=THEME.BORDER,
+                  loc="lower right", bbox_to_anchor=(0.99, 0.01))
 
     if title:
         fig.text(0.5, 0.98, title, ha="center", va="top",

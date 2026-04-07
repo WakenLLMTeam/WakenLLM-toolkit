@@ -72,8 +72,8 @@ def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
 
     ax.set_xticks(np.arange(len(cols)))
     ax.set_yticks(np.arange(len(rows)))
-    ax.set_xticklabels(cols, fontsize=THEME.FS_SMALL, color=THEME.INK, rotation=30, ha="right")
-    ax.set_yticklabels(rows, fontsize=THEME.FS_SMALL, color=THEME.INK)
+    ax.set_xticklabels(cols, fontsize=THEME.FS_SMALL, color=THEME.INK, rotation=30, ha="right", fontweight="bold")
+    ax.set_yticklabels(rows, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
     ax.tick_params(length=0)
 
     # Cell borders

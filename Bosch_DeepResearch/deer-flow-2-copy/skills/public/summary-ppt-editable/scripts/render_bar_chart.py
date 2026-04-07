@@ -64,7 +64,9 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_color(THEME.BORDER)
     ax.spines["bottom"].set_color(THEME.BORDER)
-    ax.tick_params(colors=THEME.MUTED, labelsize=THEME.FS_SMALL)
+    ax.tick_params(colors=THEME.INK, labelsize=THEME.FS_SMALL, labelcolor=THEME.INK)
+    for lbl in ax.get_xticklabels() + ax.get_yticklabels():
+        lbl.set_fontweight("bold")
     ax.yaxis.grid(True, color=THEME.BORDER, linewidth=0.6, linestyle="--", alpha=0.7)
     ax.set_axisbelow(True)
 
@@ -98,17 +100,23 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
                                     fontsize=THEME.FS_MICRO, color="white", fontweight="bold")
             bottoms += vals
     else:
-        # grouped
-        width = 0.75 / n_ser
+        # grouped — bars within each category sit flush against each other
+        # bar_gap: gap between individual bars (0 = no gap, default)
+        # group_gap: fraction of x-unit left as space between category groups
+        bar_gap    = float(spec.get("bar_gap", 0.0))       # gap between bars in same group
+        group_gap  = float(spec.get("group_gap", 0.20))    # fraction of x reserved as inter-group space
+        group_w    = 1.0 - group_gap                        # total bar area per x-unit
+        bar_w      = (group_w - bar_gap * (n_ser - 1)) / n_ser  # width of each individual bar
         for si, ser in enumerate(series):
             color = ser.get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)])
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
-            offset = (si - (n_ser - 1) / 2) * width
+            # offset so the group is centred on x; bars touch each other
+            offset = -group_w / 2 + si * (bar_w + bar_gap) + bar_w / 2
             if orientation == "horizontal":
-                bars = ax.barh(x + offset, vals, color=color, height=width * 0.85,
+                bars = ax.barh(x + offset, vals, color=color, height=bar_w,
                                label=ser.get("name", ""), alpha=0.88)
             else:
-                bars = ax.bar(x + offset, vals, color=color, width=width * 0.85,
+                bars = ax.bar(x + offset, vals, color=color, width=bar_w,
                               label=ser.get("name", ""), alpha=0.88)
             if show_values and n_ser <= 3:
                 for bar, val in zip(bars, vals):

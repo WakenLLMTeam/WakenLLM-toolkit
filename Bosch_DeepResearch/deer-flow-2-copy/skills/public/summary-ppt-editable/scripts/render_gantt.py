@@ -93,10 +93,11 @@ def render_gantt(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_xlim(-0.5, total_cols - 0.5)
     ax.set_ylim(-0.5, n_tasks - 0.5)
     ax.set_xticks(range(total_cols))
-    ax.set_xticklabels(x_labels[:total_cols], fontsize=THEME.FS_SMALL, color=THEME.INK)
+    ax.set_xticklabels(x_labels[:total_cols], fontsize=THEME.FS_SMALL,
+                       color=THEME.INK, fontweight="bold")
     ax.set_yticks(range(n_tasks))
     ax.set_yticklabels([t.get("label", "") for t in reversed(tasks)],
-                       fontsize=THEME.FS_SMALL, color=THEME.INK)
+                       fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
 
     for ti, task in enumerate(reversed(tasks)):
         start = task.get("start", 0)

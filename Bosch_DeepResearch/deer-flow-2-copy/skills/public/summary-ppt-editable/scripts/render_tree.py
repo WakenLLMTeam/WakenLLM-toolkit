@@ -104,17 +104,19 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_facecolor(THEME.BG)
     ax.axis("off")
 
-    # Normalize positions to [0,1]
+    # Normalize positions to [margin, 1-margin] so nodes don't touch edges
+    MARGIN_X = 0.06
+    MARGIN_Y = 0.10   # extra bottom/top margin prevents leaf nodes being clipped
     def norm(x, y):
-        nx = x / max(n_leaves - 1, 1)
-        ny = 1.0 - y / max(max_depth, 1)
+        nx = MARGIN_X + (1 - 2 * MARGIN_X) * x / max(n_leaves - 1, 1)
+        ny = 1.0 - MARGIN_Y - (1 - 2 * MARGIN_Y) * y / max(max_depth, 1)
         if direction == "LR":
             return ny, nx
         return nx, ny
 
-    # Node sizes
-    node_w = min(0.16, 0.85 / max(n_leaves, 1))
-    node_h = min(0.10, 0.75 / max(max_depth + 1, 1))
+    # Node sizes: scale with number of leaves / depth
+    node_w = min(0.15, (1 - 2 * MARGIN_X - 0.02) / max(n_leaves, 1))
+    node_h = min(0.09, (1 - 2 * MARGIN_Y - 0.02) / max(max_depth + 1, 1))
 
     def _draw_node(node: Dict, ax) -> None:
         nid = node["_id"]
@@ -137,7 +139,7 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
         fs = THEME.FS_BODY if is_root else THEME.FS_SMALL
         ax.text(nx, ny, label, ha="center", va="center",
                 fontsize=fs, color=THEME.INK,
-                fontweight="bold" if is_root else "normal",
+                fontweight="bold",
                 transform=ax.transAxes, zorder=5,
                 multialignment="center")
 

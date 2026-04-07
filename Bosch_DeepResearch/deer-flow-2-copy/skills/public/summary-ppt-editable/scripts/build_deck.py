@@ -68,16 +68,45 @@ import render_comparison
 import render_pipeline
 import render_radar
 import render_arch
+import render_bar_chart
+import render_line_chart
+import render_scatter
+import render_heatmap
+import render_waterfall
+import render_funnel
+import render_mindmap
+import render_tree
+import render_matrix_2x2
+import render_venn
+import render_onion
+import render_gantt
+import render_swot
 import build_pptx as _build_pptx_mod
 
 
 _RENDERERS = {
+    # Original 6
     "timeline":   render_timeline.render_timeline,
     "flowchart":  render_flowchart.render_flowchart,
     "comparison": render_comparison.render_comparison,
     "pipeline":   render_pipeline.render_pipeline,
     "radar":      render_radar.render_radar,
     "arch":       render_arch.render_arch,
+    # Data viz
+    "bar_chart":  render_bar_chart.render_bar_chart,
+    "line_chart": render_line_chart.render_line_chart,
+    "scatter":    render_scatter.render_scatter,
+    "heatmap":    render_heatmap.render_heatmap,
+    "waterfall":  render_waterfall.render_waterfall,
+    "funnel":     render_funnel.render_funnel,
+    # Structure
+    "mindmap":    render_mindmap.render_mindmap,
+    "tree":       render_tree.render_tree,
+    "matrix_2x2":render_matrix_2x2.render_matrix_2x2,
+    "venn":       render_venn.render_venn,
+    "onion":      render_onion.render_onion,
+    "gantt":      render_gantt.render_gantt,
+    "swot":       render_swot.render_swot,
 }
 
 

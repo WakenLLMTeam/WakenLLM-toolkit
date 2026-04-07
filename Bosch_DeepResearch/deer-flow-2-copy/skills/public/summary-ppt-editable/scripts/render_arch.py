@@ -174,14 +174,19 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
         # Blocks within band
         blocks: List[Dict[str, Any]] = layer.get("blocks", [])
         k = max(1, len(blocks))
-        block_gap = 0.012
+        block_gap = 0.010
         block_w = (content_w - block_gap * (k - 1)) / k
-        block_h_frac = (band_top - band_bot - gap) * 0.72
+        block_h_frac = (band_top - band_bot - gap) * 0.80
         block_y = band_mid - block_h_frac / 2
 
-        label_fs = max(THEME.FS_MICRO + 0.5, THEME.FS_BODY - max(0, k - 4) * 0.4)
-        sub_fs = max(THEME.FS_MICRO, THEME.FS_SMALL - max(0, k - 4) * 0.3)
-        badge_fs = THEME.FS_MICRO
+        # Adaptive font: shrink when many blocks per row
+        label_fs  = max(THEME.FS_MICRO + 0.5, THEME.FS_BODY  - max(0, k - 3) * 0.5)
+        sub_fs    = max(THEME.FS_MICRO - 0.5, THEME.FS_SMALL - max(0, k - 3) * 0.4)
+        badge_fs  = max(THEME.FS_MICRO - 1.0, THEME.FS_MICRO - max(0, k - 4) * 0.3)
+
+        # Max chars for sublabel before wrapping (proportional to block width)
+        # block_w in axes units; rough mapping: 0.1 ≈ 10 chars at sub_fs
+        max_sub_chars = max(10, int(block_w * 95))
 
         for bi, block in enumerate(blocks):
             bx = content_left + bi * (block_w + block_gap)
@@ -210,28 +215,55 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
                 transform=ax.transAxes, zorder=4
             ))
 
-            label = block.get("label", "")
+            label   = block.get("label", "")
             sublabel = block.get("sublabel", "")
-            badge = block.get("badge", "")
+            badge   = block.get("badge", "")
 
-            label_y = band_mid + (0.012 if sublabel else 0)
+            # Wrap sublabel at max_sub_chars using · as a break hint
+            def _wrap(text: str, max_chars: int) -> str:
+                if len(text) <= max_chars:
+                    return text
+                # try splitting on · first
+                for sep in ("·", "·", ",", " "):
+                    mid = len(text) // 2
+                    idx = text.find(sep, mid - 4)
+                    if 0 < idx < len(text) - 1:
+                        return text[:idx + 1].rstrip() + "\n" + text[idx + 1:].lstrip()
+                return text[:max_chars] + "\n" + text[max_chars:]
+
+            sub_wrapped = _wrap(sublabel, max_sub_chars) if sublabel else ""
+            sub_lines = sub_wrapped.count("\n") + 1 if sub_wrapped else 0
+
+            # Vertical layout inside block:
+            # total usable = block_h_frac (in axes coords)
+            # label at top-ish, sublabel below, badge top-right
+            has_sub = bool(sub_wrapped)
+            total_text_h = (label_fs + (sub_fs * sub_lines if has_sub else 0)) / 72 / fh
+            label_offset = total_text_h / 2 - (label_fs / 72 / fh / 2)
+            label_y = band_mid + label_offset
+
             ax.text(bx + block_w / 2, label_y, label,
                     ha="center", va="center",
                     fontsize=label_fs, color=THEME.INK, fontweight="bold",
-                    transform=ax.transAxes, zorder=5)
+                    transform=ax.transAxes, zorder=5,
+                    clip_on=True)
 
-            if sublabel:
-                ax.text(bx + block_w / 2, band_mid - 0.022, sublabel,
-                        ha="center", va="center",
+            if sub_wrapped:
+                sub_y = label_y - (label_fs / 72 / fh) - (sub_fs * 0.6 / 72 / fh)
+                ax.text(bx + block_w / 2, sub_y, sub_wrapped,
+                        ha="center", va="top",
                         fontsize=sub_fs, color=THEME.MUTED,
-                        transform=ax.transAxes, zorder=5)
+                        transform=ax.transAxes, zorder=5,
+                        multialignment="center", linespacing=1.1,
+                        clip_on=True)
 
             if badge:
-                ax.text(bx + block_w - 0.006, block_y + block_h_frac - 0.010,
+                ax.text(bx + block_w - 0.005, block_y + block_h_frac - 0.008,
                         badge,
                         ha="right", va="top",
                         fontsize=badge_fs, color=THEME.ACCENT, fontweight="bold",
-                        transform=ax.transAxes, zorder=6)
+                        transform=ax.transAxes, zorder=6,
+                        clip_on=True)
 
     # ── Inter-layer connections ───────────────────────────────────────────────
     for conn in connections:

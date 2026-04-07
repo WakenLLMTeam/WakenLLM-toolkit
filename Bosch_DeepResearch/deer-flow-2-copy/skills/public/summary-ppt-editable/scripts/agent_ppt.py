@@ -67,6 +67,8 @@ def generate_pptx(
     backend: Optional[str] = None,
     model: str = "",
     plan_file: Optional[str] = None,
+    lang: str = "en",
+    two_stage: bool = True,
 ) -> str:
     """
     Full pipeline: topic → LLM plan → figures → PPTX.
@@ -80,6 +82,8 @@ def generate_pptx(
         backend:     LLM backend override (None = auto-detect)
         model:       Model name override
         plan_file:   Path to an existing plan JSON — skips LLM if provided
+        lang:        Output language: "en" (default) or "zh"
+        two_stage:   Run two-stage key-point extraction (default True)
 
     Returns:
         Absolute path to the generated .pptx file
@@ -92,6 +96,7 @@ def generate_pptx(
         plan = llm_planner.generate_plan(
             topic=topic, slides=slides, extra=extra,
             backend=backend, model=model,
+            lang=lang, two_stage=two_stage,
         )
 
     if assets_dir is None:
@@ -130,6 +135,10 @@ def main() -> int:
                         help="LLM backend (default: auto-detect from env)")
     parser.add_argument("--model", default="",
                         help="LLM model name override")
+    parser.add_argument("--lang", default="en", choices=["en", "zh"],
+                        help="Output language: en (default) or zh")
+    parser.add_argument("--no-two-stage", action="store_true",
+                        help="Skip Stage 1 key-point extraction (faster, lower quality)")
     parser.add_argument("--plan-only", action="store_true",
                         help="Generate plan JSON only, do not build PPTX. "
                              "--output is treated as the plan JSON path.")
@@ -139,7 +148,8 @@ def main() -> int:
         if not args.topic:
             parser.error("--plan-only requires --topic")
         plan = llm_planner.generate_plan(
-            args.topic, args.slides, args.extra, args.backend, args.model
+            args.topic, args.slides, args.extra, args.backend, args.model,
+            lang=args.lang, two_stage=not args.no_two_stage,
         )
         out = json.dumps(plan, ensure_ascii=False, indent=2)
         if args.output:
@@ -159,6 +169,8 @@ def main() -> int:
         backend=args.backend,
         model=args.model,
         plan_file=args.plan,
+        lang=args.lang,
+        two_stage=not args.no_two_stage,
     )
     print(f"PPTX ready: {out_path}")
     return 0

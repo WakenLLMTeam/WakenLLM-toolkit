@@ -3,8 +3,12 @@
 LLM-driven deck content planner.
 Standalone — no DeerFlow dependency required.
 
-Given a topic string, calls an LLM to produce a fully-structured deck plan JSON
-(including figure.viz specs for all charts), ready for build_deck.py.
+Two-stage pipeline (borrowed from PPTAgent):
+  Stage 1 — Key-point extraction: LLM distils the raw topic into a structured
+             outline of concise key points per section (prevents bloated bullets).
+  Stage 2 — Plan generation: LLM uses the key-point outline to produce the full
+             deck plan JSON with viz specs, character-count constraints, and
+             layout decisions already baked in.
 
 Supported LLM backends (auto-detected from env vars):
   1. Anthropic Claude  — ANTHROPIC_API_KEY
@@ -14,32 +18,70 @@ Supported LLM backends (auto-detected from env vars):
 
 Usage (library):
   from llm_planner import generate_plan
-  plan = generate_plan("L2 to L3 autonomous driving evolution")
+  plan = generate_plan("L2 to L3 autonomous driving evolution", lang="zh")
 
 Usage (CLI):
   python llm_planner.py --topic "L2 to L3 autonomous driving evolution" --output plan.json
-  python llm_planner.py --topic "Transformer architecture explained" --slides 8
-  python llm_planner.py --topic "..." --backend anthropic --model claude-opus-4-5
+  python llm_planner.py --topic "Transformer architecture explained" --slides 8 --lang zh
+  python llm_planner.py --topic "..." --backend custom --model qwen3-max
 """
 from __future__ import annotations
 
 import argparse
 import json
 import os
+import re
 import sys
 import textwrap
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-# ── System prompt ─────────────────────────────────────────────────────────────
 
-_SYSTEM_PROMPT = textwrap.dedent("""
-You are an expert presentation architect. Your job is to produce a richly-structured,
-information-dense PowerPoint deck plan as a single valid JSON object.
+# ── Stage 1: Key-point extraction prompt ──────────────────────────────────────
 
-## Output contract
+_EXTRACT_SYSTEM = textwrap.dedent("""
+You are a research analyst. Given a presentation topic, produce a concise
+structured outline as a JSON object.
 
-Return ONLY the JSON object — no markdown fences, no commentary, no extra text.
-The JSON must conform to this schema:
+Return ONLY the JSON — no fences, no commentary.
+
+Schema:
+{
+  "topic_summary": "2-3 sentence overview of the topic",
+  "sections": [
+    {
+      "title": "Section name",
+      "key_points": [
+        "Concise factual point (max 15 words)",
+        "Another point"
+      ],
+      "has_timeline": true|false,
+      "has_comparison": true|false,
+      "has_process": true|false
+    }
+  ]
+}
+
+Rules:
+- 4-7 sections covering the topic comprehensively
+- Each section: 3-6 key_points, each ≤15 words, factual and specific
+- has_timeline: true when section covers chronological evolution/roadmap
+- has_comparison: true when section compares multiple options/players
+- has_process: true when section describes a pipeline/workflow/architecture
+""").strip()
+
+_EXTRACT_USER_TEMPLATE = "Topic: {topic}\n\nExtra context: {extra}\n\nProduce the structured outline now."
+
+
+# ── Stage 2: Plan generation prompt ───────────────────────────────────────────
+
+_PLAN_SYSTEM = textwrap.dedent("""
+You are an expert presentation architect. Given a structured topic outline,
+produce a complete PowerPoint deck plan as a single valid JSON object.
+
+Return ONLY the JSON — no markdown fences, no commentary.
+
+## Output schema
 
 {
   "title": "string",
@@ -47,8 +89,8 @@ The JSON must conform to this schema:
   "aspect_ratio": "16:9",
   "theme": {
     "accent_rgb": [R, G, B],
-    "body_rgb": [R, G, B],
-    "title_rgb": [R, G, B],
+    "body_rgb": [51, 65, 85],
+    "title_rgb": [15, 23, 42],
     "author": "string"
   },
   "slides": [ <slide_object>, ... ]
@@ -58,132 +100,152 @@ Each slide_object:
 {
   "slide_number": 1,
   "type": "title" | "section" | "content" | "summary",
-  "title": "string",
-  "subtitle": "string — only for type:title",
-  "bullets": ["string", ...],          // OR use modules below
-  "modules": [                          // multi-block layout
-    { "heading": "string", "bullets": ["string", ...] }
+  "title": "string (≤40 chars)",
+
+  // For type:title only:
+  "subtitle": "string (≤60 chars)",
+
+  // Content — choose ONE of: cards | modules | bullets
+  // cards: use when slide has 2-6 parallel independent topics
+  "cards": [
+    {
+      "heading": "string (≤20 chars)",
+      "icon": "single emoji (optional)",
+      "bullets": ["string (≤35 chars each)", ...]   // 2-4 bullets per card
+    }
   ],
-  "figure": {                           // optional visualization
-    "position": "right" | "bottom",
-    "caption": "string",
-    "viz": { ... }                      // see Viz spec below
+  "cards_cols": 0,   // 0=auto, or 2/3
+
+  // modules: use when slide has 2-3 distinct named sub-topics
+  "modules": [
+    { "heading": "string (≤25 chars)", "bullets": ["string (≤50 chars)", ...] }
+  ],
+
+  // bullets: use for simple single-topic slides
+  "bullets": ["string (≤60 chars)", ...],   // 3-6 bullets
+
+  // Optional visualization
+  "figure": {
+    "position": "right" | "bottom",    // right=flowchart/comparison, bottom=timeline/pipeline
+    "caption": "string (≤50 chars, optional)",
+    "viz": { ... }                     // see Viz spec
   },
-  "notes": "speaker notes string"
+
+  "notes": "string (≤150 chars)"
 }
 
-## Viz spec (figure.viz)
+## CHARACTER LIMITS — CRITICAL
 
-Choose ONE type per slide. Use the type that best conveys the slide's logic.
+These limits prevent text overflow in the final slides. You MUST respect them:
+- Slide title: ≤40 characters
+- Card heading: ≤20 characters
+- Card bullet: ≤35 characters (2-4 bullets per card)
+- Module heading: ≤25 characters
+- Module bullet: ≤50 characters
+- Plain bullet: ≤60 characters (3-6 bullets)
+- Speaker notes: ≤150 characters
 
-### timeline — sequence of stages over time
+If a point cannot fit within the limit, split it into two bullets or abbreviate.
+
+## Viz spec
+
+### timeline
 {
   "type": "timeline",
   "title": "string",
   "stages": [
-    { "label": "string", "year": "string", "annotation": "short tag", "detail": "one-liner" }
+    { "label": "≤20 chars", "year": "string", "annotation": "≤15 chars", "detail": "≤40 chars" }
   ],
-  "highlight": [0-based index of the most important stage]
+  "highlight": [0-based index]
 }
-Use for: historical evolution, roadmaps, project phases.
+Use for: chronological evolution, roadmaps. Position: "bottom".
 
-### flowchart — directed decision/process graph
+### flowchart
 {
   "type": "flowchart",
-  "title": "string",
   "layout": "LR" | "TB",
-  "nodes": [
-    { "id": "n1", "label": "string", "shape": "rect"|"diamond"|"rounded", "color": "#hex" }
-  ],
-  "edges": [
-    { "from": "n1", "to": "n2", "label": "optional edge label" }
-  ]
+  "nodes": [ { "id": "n1", "label": "≤20 chars", "shape": "rect"|"diamond"|"rounded", "color": "#hex" } ],
+  "edges": [ { "from": "n1", "to": "n2", "label": "≤12 chars" } ]
 }
-Use for: decision logic, system architecture, cause-effect chains.
-Diamond shape for decision nodes. Rounded for terminal/result nodes.
+Use for: decision logic, system architecture. Position: "right".
 
-### comparison — feature matrix table
+### comparison
 {
   "type": "comparison",
-  "title": "string",
-  "highlight_col": 0-based int,
-  "rows": ["row header", ...],
-  "cols": ["col header", ...],
-  "cells": [["cell00", "cell01", ...], ["cell10", ...], ...],
-  "row_notes": ["", "Key difference", ...]
+  "highlight_col": 0,
+  "rows": ["≤20 chars", ...],
+  "cols": ["≤15 chars", ...],
+  "cells": [["≤18 chars", ...], ...],
+  "row_notes": ["≤30 chars", ...]
 }
-Use for: side-by-side feature comparison, capability matrices.
+Use for: side-by-side capability matrix. Position: "right".
 
-### pipeline — horizontal block diagram
+### pipeline
 {
   "type": "pipeline",
-  "title": "string",
-  "arrow_label": "data flow",
   "stages": [
-    { "label": "string", "sublabel": "string", "color": "#hex", "badge": "ASIL-D" }
+    { "label": "≤15 chars", "sublabel": "≤25 chars", "color": "#hex", "badge": "≤8 chars" }
   ]
 }
-Use for: system module chains, data pipelines, processing steps.
+Use for: system module chains, processing steps. Position: "bottom".
+Do NOT include arrow_label.
 
-## Slide count and quality rules
+## Layout selection rules
 
-- Produce 8–12 slides for a comprehensive topic; 5–7 for a focused topic.
-- Structure: title → 2–3 section dividers → content slides → summary.
-- Every content slide should have either:
-  - A figure.viz (timeline/flowchart/comparison/pipeline) — preferred for logic topics
-  - OR rich modules with 3+ substantive bullet points each
-- At least 3 content slides must have a figure.viz.
-- Speaker notes must be **under 200 characters**. One punchy sentence of context only — no long paragraphs.
-- For pipeline viz: **do NOT include `arrow_label`** — arrows are self-explanatory from context.
-- Bullets must be specific and informative — avoid vague filler like "more efficient".
-- Speaker notes should add the "why" or regulatory/technical nuance not in the slide text.
-- Use position:"bottom" for timelines/pipelines; position:"right" for flowcharts/comparisons.
+- Use "cards" when: 3-6 parallel topics that are best compared side-by-side
+- Use "modules" when: 2-3 named sub-topics, each with a few bullets
+- Use "bullets" when: single continuous topic with simple list
+- Add figure.viz when the section outline flags has_timeline/has_comparison/has_process
+- Structure: title slide → section dividers → content slides → summary
 
 ## Color guidance
 
-Pick a coherent accent color appropriate to the domain:
-- Automotive / engineering: blue [26, 86, 219] or dark navy [15, 40, 100]
-- Technology / AI: indigo [79, 70, 229] or teal [13, 148, 136]
-- Finance / data: green [5, 150, 105] or blue-grey [71, 85, 105]
-- Medical / safety: deep blue [30, 64, 175] or purple [109, 40, 217]
+- Automotive / engineering: [26, 86, 219] or [15, 40, 100]
+- Technology / AI: [79, 70, 229] or [13, 148, 136]
+- Finance / data: [5, 150, 105] or [71, 85, 105]
+- Safety / medical: [30, 64, 175] or [109, 40, 217]
 """).strip()
 
-
-_USER_PROMPT_TEMPLATE = textwrap.dedent("""
-Topic: {topic}
+_PLAN_USER_TEMPLATE = textwrap.dedent("""
+Topic outline:
+{outline}
 
 Additional constraints:
-- Language: English (all text in the deck must be English)
-- Slides requested: {slides}
+- Output language: {lang_instruction}
+- Target slides: {slides}
 - Extra instructions: {extra}
 
 Generate the complete deck plan JSON now.
 """).strip()
 
+_LANG_INSTRUCTIONS = {
+    "zh": "Chinese (Simplified) — all slide text, titles, bullets, and notes must be in Chinese",
+    "en": "English — all slide text must be in English",
+}
 
-# ── Backend adapters ──────────────────────────────────────────────────────────
 
-def _call_anthropic(prompt: str, model: str) -> str:
+# ── Backend adapters ───────────────────────────────────────────────────────────
+
+def _call_anthropic(system: str, prompt: str, model: str) -> str:
     import anthropic
-    # Support both ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN (custom gateways)
     api_key = (os.environ.get("ANTHROPIC_API_KEY")
-               or os.environ.get("ANTHROPIC_AUTH_TOKEN")
-               or "")
+               or os.environ.get("ANTHROPIC_AUTH_TOKEN") or "")
     base_url = os.environ.get("ANTHROPIC_BASE_URL")
-    kwargs = dict(api_key=api_key)
+    kwargs: Dict[str, Any] = dict(api_key=api_key)
     if base_url:
         kwargs["base_url"] = base_url
     client = anthropic.Anthropic(**kwargs)
     msg = client.messages.create(
         model=model or "claude-sonnet-4-6",
         max_tokens=8192,
-        system=_SYSTEM_PROMPT,
+        system=system,
         messages=[{"role": "user", "content": prompt}],
     )
     return msg.content[0].text
 
 
-def _call_openai(prompt: str, model: str, base_url: Optional[str] = None,
+def _call_openai(system: str, prompt: str, model: str,
+                 base_url: Optional[str] = None,
                  api_key: Optional[str] = None) -> str:
     from openai import OpenAI
     client = OpenAI(
@@ -194,34 +256,33 @@ def _call_openai(prompt: str, model: str, base_url: Optional[str] = None,
         model=model or "gpt-4o",
         max_tokens=8192,
         messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
     )
     return resp.choices[0].message.content
 
 
-def _call_ollama(prompt: str, model: str, host: str) -> str:
+def _call_ollama(system: str, prompt: str, model: str, host: str) -> str:
     import urllib.request
     url = f"{host.rstrip('/')}/api/chat"
     payload = json.dumps({
         "model": model or "llama3",
         "stream": False,
         "messages": [
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": system},
             {"role": "user", "content": prompt},
         ],
     }).encode()
     req = urllib.request.Request(url, data=payload,
-                                  headers={"Content-Type": "application/json"})
+                                 headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=120) as r:
         data = json.loads(r.read())
     return data["message"]["content"]
 
 
 def _detect_backend() -> str:
-    """Auto-detect which backend to use based on environment variables."""
-    if (os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")):
+    if os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"):
         return "anthropic"
     if os.environ.get("OPENAI_API_KEY"):
         return "openai"
@@ -230,53 +291,104 @@ def _detect_backend() -> str:
     return "ollama"
 
 
-def _call_llm(prompt: str, backend: str, model: str) -> str:
+def _call_llm(system: str, prompt: str, backend: str, model: str) -> str:
     if backend == "anthropic":
-        return _call_anthropic(prompt, model)
+        return _call_anthropic(system, prompt, model)
     if backend == "openai":
-        return _call_openai(prompt, model)
+        return _call_openai(system, prompt, model)
     if backend == "custom":
         return _call_openai(
-            prompt, model or os.environ.get("CUSTOM_LLM_MODEL", "gpt-4o"),
+            system, prompt,
+            model or os.environ.get("CUSTOM_LLM_MODEL", "gpt-4o"),
             base_url=os.environ["CUSTOM_LLM_BASE_URL"],
             api_key=os.environ.get("CUSTOM_LLM_API_KEY"),
         )
     if backend == "ollama":
         host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
         mdl = model or os.environ.get("OLLAMA_MODEL", "llama3")
-        return _call_ollama(prompt, mdl, host)
+        return _call_ollama(system, prompt, mdl, host)
     raise ValueError(f"Unknown backend: {backend!r}")
 
 
 # ── JSON extraction ────────────────────────────────────────────────────────────
 
 def _extract_json(raw: str) -> Dict[str, Any]:
-    """Strip markdown fences and extract the first valid JSON object."""
-    # Remove ```json ... ``` or ``` ... ```
+    """Robustly extract first valid JSON object from LLM response."""
     text = raw.strip()
-    for fence in ("```json", "```"):
-        if text.startswith(fence):
-            text = text[len(fence):]
-            if text.endswith("```"):
-                text = text[:-3]
-            break
 
-    # Find outermost { ... }
+    # Strip markdown fences (``` json, ```json, ~~~, etc.)
+    text = re.sub(r"^```+\w*\s*", "", text)
+    text = re.sub(r"\s*```+$", "", text)
+    text = re.sub(r"^~~~+\w*\s*", "", text)
+    text = re.sub(r"\s*~~~+$", "", text)
+    text = text.strip()
+
     start = text.find("{")
     if start == -1:
         raise ValueError("No JSON object found in LLM response")
+
+    # Walk chars tracking depth, but skip content inside strings
     depth = 0
+    in_string = False
+    escape_next = False
     for i, ch in enumerate(text[start:], start):
+        if escape_next:
+            escape_next = False
+            continue
+        if ch == "\\" and in_string:
+            escape_next = True
+            continue
+        if ch == '"':
+            in_string = not in_string
+            continue
+        if in_string:
+            continue
         if ch == "{":
             depth += 1
         elif ch == "}":
             depth -= 1
             if depth == 0:
                 return json.loads(text[start: i + 1])
+
     raise ValueError("Incomplete JSON object in LLM response")
 
 
-# ── Public API ────────────────────────────────────────────────────────────────
+# ── Stage 1: key-point extraction ─────────────────────────────────────────────
+
+def _extract_key_points(topic: str, extra: str,
+                        backend: str, model: str) -> Dict[str, Any]:
+    """Stage 1: distil topic into structured key-point outline."""
+    user = _EXTRACT_USER_TEMPLATE.format(topic=topic, extra=extra or "None")
+    print("[llm_planner] Stage 1: extracting key points…", file=sys.stderr)
+    raw = _call_llm(_EXTRACT_SYSTEM, user, backend, model)
+    outline = _extract_json(raw)
+    n_sections = len(outline.get("sections", []))
+    print(f"[llm_planner] Stage 1 done: {n_sections} sections", file=sys.stderr)
+    return outline
+
+
+def _outline_to_text(outline: Dict[str, Any]) -> str:
+    """Serialise the key-point outline as readable text for Stage 2."""
+    lines: List[str] = []
+    lines.append(f"Summary: {outline.get('topic_summary', '')}")
+    lines.append("")
+    for sec in outline.get("sections", []):
+        flags = []
+        if sec.get("has_timeline"):
+            flags.append("HAS_TIMELINE")
+        if sec.get("has_comparison"):
+            flags.append("HAS_COMPARISON")
+        if sec.get("has_process"):
+            flags.append("HAS_PROCESS")
+        flag_str = f"  [{', '.join(flags)}]" if flags else ""
+        lines.append(f"## {sec['title']}{flag_str}")
+        for kp in sec.get("key_points", []):
+            lines.append(f"  - {kp}")
+        lines.append("")
+    return "\n".join(lines)
+
+
+# ── Public API ─────────────────────────────────────────────────────────────────
 
 def generate_plan(
     topic: str,
@@ -284,16 +396,22 @@ def generate_plan(
     extra: str = "",
     backend: Optional[str] = None,
     model: str = "",
+    lang: str = "en",
+    two_stage: bool = True,
 ) -> Dict[str, Any]:
     """
     Generate a deck plan dict for the given topic using an LLM.
 
     Args:
-        topic:   Deck topic (free-form English string)
-        slides:  Target number of slides
-        extra:   Extra instructions appended to the user prompt
-        backend: "anthropic" | "openai" | "custom" | "ollama" | None (auto-detect)
-        model:   Model name override (optional)
+        topic:     Deck topic (free-form string)
+        slides:    Target number of slides
+        extra:     Extra instructions appended to the user prompt
+        backend:   "anthropic" | "openai" | "custom" | "ollama" | None (auto-detect)
+        model:     Model name override (optional)
+        lang:      Output language: "en" (default) or "zh"
+        two_stage: If True (default), run key-point extraction first (Stage 1)
+                   before plan generation (Stage 2). Better quality, one extra
+                   LLM call. Set False to skip Stage 1 (faster, single call).
 
     Returns:
         Parsed plan dict ready for build_deck.build_deck()
@@ -301,27 +419,40 @@ def generate_plan(
     if backend is None:
         backend = _detect_backend()
 
-    user_prompt = _USER_PROMPT_TEMPLATE.format(
-        topic=topic,
+    lang_instruction = _LANG_INSTRUCTIONS.get(lang, _LANG_INSTRUCTIONS["en"])
+    print(f"[llm_planner] Backend: {backend}  Topic: {topic[:60]}", file=sys.stderr)
+
+    if two_stage:
+        # Stage 1: extract structured key points
+        outline = _extract_key_points(topic, extra, backend, model)
+        outline_text = _outline_to_text(outline)
+    else:
+        # Single-stage fallback: use topic directly as outline
+        outline_text = f"Topic: {topic}\n\nExtra: {extra or 'None'}"
+
+    # Stage 2: generate full plan from outline
+    user = _PLAN_USER_TEMPLATE.format(
+        outline=outline_text,
+        lang_instruction=lang_instruction,
         slides=slides,
         extra=extra or "None",
     )
-    print(f"[llm_planner] Backend: {backend}  Topic: {topic[:60]}", file=sys.stderr)
-    raw = _call_llm(user_prompt, backend, model)
+    print("[llm_planner] Stage 2: generating deck plan…", file=sys.stderr)
+    raw = _call_llm(_PLAN_SYSTEM, user, backend, model)
     plan = _extract_json(raw)
     print(f"[llm_planner] Plan generated: {len(plan.get('slides', []))} slides",
           file=sys.stderr)
     return plan
 
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# ── CLI ────────────────────────────────────────────────────────────────────────
 
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Generate a deck plan JSON from a topic using an LLM"
     )
     parser.add_argument("--topic", required=True,
-                        help="Deck topic (free-form English string)")
+                        help="Deck topic (free-form string)")
     parser.add_argument("--output", default=None,
                         help="Write plan JSON to this file (default: stdout)")
     parser.add_argument("--slides", type=int, default=10,
@@ -333,10 +464,18 @@ def main() -> int:
                         help="LLM backend (default: auto-detect from env)")
     parser.add_argument("--model", default="",
                         help="Model name override")
+    parser.add_argument("--lang", default="en", choices=["en", "zh"],
+                        help="Output language: en (default) or zh")
+    parser.add_argument("--no-two-stage", action="store_true",
+                        help="Skip Stage 1 key-point extraction (faster, lower quality)")
     args = parser.parse_args()
 
-    plan = generate_plan(args.topic, args.slides, args.extra,
-                         args.backend, args.model)
+    plan = generate_plan(
+        args.topic, args.slides, args.extra,
+        args.backend, args.model,
+        lang=args.lang,
+        two_stage=not args.no_two_stage,
+    )
     out = json.dumps(plan, ensure_ascii=False, indent=2)
 
     if args.output:

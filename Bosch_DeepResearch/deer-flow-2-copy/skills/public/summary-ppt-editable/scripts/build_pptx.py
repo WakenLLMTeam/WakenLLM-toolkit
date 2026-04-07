@@ -56,6 +56,17 @@ def _add_picture_fit(slide, img_path: str, box_left, box_top, box_w, box_h):
     )
 
 
+
+def _truncate(text: str, max_chars: int) -> str:
+    """Trim text to max_chars, appending '…' if truncated."""
+    text = (text or "").strip()
+    if len(text) <= max_chars:
+        return text
+    # Try to cut at a word boundary
+    cut = text[:max_chars - 1].rsplit(" ", 1)[0]
+    return (cut if len(cut) > max_chars // 2 else text[:max_chars - 1]) + "…"
+
+
 def _rgb(t: Optional[List[int]], default: Tuple[int, int, int]) -> RGBColor:
     if t and len(t) == 3:
         return RGBColor(int(t[0]), int(t[1]), int(t[2]))
@@ -88,7 +99,7 @@ def _add_modules(
         if h:
             p = text_frame.paragraphs[0] if first else text_frame.add_paragraph()
             first = False
-            p.text = h
+            p.text = _truncate(h, 25)
             p.font.bold = True
             p.font.size = Pt(heading_pt)
             p.font.color.rgb = heading_rgb
@@ -103,7 +114,7 @@ def _add_modules(
                 continue
             p = text_frame.paragraphs[0] if first else text_frame.add_paragraph()
             first = False
-            p.text = line
+            p.text = _truncate(line, 50)
             p.level = 0
             p.font.size = Pt(body_pt)
             p.font.color.rgb = body_rgb
@@ -210,7 +221,7 @@ def _add_cards(
         heading = (card.get("heading") or "").strip()
         icon = (card.get("icon") or "").strip()
         if heading:
-            label = f"{icon}  {heading}" if icon else heading
+            label = f"{icon}  {_truncate(heading, 20)}" if icon else _truncate(heading, 20)
             p = tf.paragraphs[0] if first else tf.add_paragraph()
             first = False
             p.text = label
@@ -229,7 +240,7 @@ def _add_cards(
                 continue
             p = tf.paragraphs[0] if first else tf.add_paragraph()
             first = False
-            p.text = f"• {line}"
+            p.text = f"• {_truncate(line, 35)}"
             p.font.size = Pt(11)
             p.font.color.rgb = body_rgb
             p.space_after = Pt(4)
@@ -248,7 +259,7 @@ def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RG
     for line in lines:
         p = text_frame.paragraphs[0] if first else text_frame.add_paragraph()
         first = False
-        p.text = line
+        p.text = _truncate(line, 60)
         p.level = 0
         p.font.size = Pt(size_pt)
         p.font.color.rgb = body_rgb
@@ -291,7 +302,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             tf = box.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
-            p.text = slide.get("title", "")
+            p.text = _truncate(slide.get("title", ""), 40)
             p.font.bold = True
             p.font.size = Pt(40)
             p.font.color.rgb = title_rgb
@@ -303,7 +314,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             sub = slide.get("subtitle") or ""
             if sub:
                 p2 = tf.add_paragraph()
-                p2.text = sub
+                p2.text = _truncate(sub, 60)
                 p2.font.size = Pt(22)
                 p2.font.color.rgb = body_rgb
                 p2.alignment = PP_ALIGN.CENTER
@@ -319,7 +330,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             box = sld.shapes.add_textbox(Inches(0.6), Inches(2.8), slide_w - Inches(1.2), Inches(1.0))
             tf = box.text_frame
             p = tf.paragraphs[0]
-            p.text = slide.get("title", "")
+            p.text = _truncate(slide.get("title", ""), 40)
             p.font.bold = True
             p.font.size = Pt(32)
             p.font.color.rgb = title_rgb
@@ -334,7 +345,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             tfp = tb.text_frame
             tfp.word_wrap = True
             pp = tfp.paragraphs[0]
-            pp.text = slide.get("title", "")
+            pp.text = _truncate(slide.get("title", ""), 40)
             pp.font.bold = True
             pp.font.size = Pt(26)
             pp.font.color.rgb = title_rgb

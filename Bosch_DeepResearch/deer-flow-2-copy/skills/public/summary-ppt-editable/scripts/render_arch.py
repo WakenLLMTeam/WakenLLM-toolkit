@@ -178,8 +178,6 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
                                               start_pt=label_fs))
         sub_fs   = min(sub_fs,   fit_fontsize("WWWWWWWWWWWWWWWWWWWWWWWWW", _block_w_in, _block_h_in * 0.35,
                                               start_pt=sub_fs))
-        badge_fs  = max(THEME.FS_MICRO - 1.0, THEME.FS_MICRO - max(0, k - 4) * 0.3)
-
         # Max chars for sublabel before wrapping (proportional to block width)
         # block_w in axes units; rough mapping: 0.1 ≈ 10 chars at sub_fs
         max_sub_chars = max(10, int(block_w * 95))
@@ -213,7 +211,6 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
 
             label   = block.get("label", "")
             sublabel = block.get("sublabel", "")
-            badge   = block.get("badge", "")
 
             # Wrap sublabel at max_sub_chars using · as a break hint
             def _wrap(text: str, max_chars: int) -> str:
@@ -251,14 +248,6 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
                         fontsize=sub_fs, color=THEME.MUTED,
                         transform=ax.transAxes, zorder=5,
                         multialignment="center", linespacing=1.1,
-                        clip_on=True)
-
-            if badge:
-                ax.text(bx + block_w - 0.005, block_y + block_h_frac - 0.008,
-                        badge,
-                        ha="right", va="top",
-                        fontsize=badge_fs, color=THEME.ACCENT, fontweight="bold",
-                        transform=ax.transAxes, zorder=6,
                         clip_on=True)
 
     # ── Title ─────────────────────────────────────────────────────────────────

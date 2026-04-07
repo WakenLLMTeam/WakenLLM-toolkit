@@ -193,24 +193,28 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_aspect("equal")
 
     outer_radius = 1.0
-    inner_radius = outer_radius - n_rings * ring_width
 
-    # ── Draw rings from outer to inner ────────────────────────────────────────
-    for ri, ring in enumerate(reversed(processed_rings)):
-        r_outer = outer_radius - ri * ring_width
-        r_inner = r_outer - ring_width
-        radius_mid = (r_outer + r_inner) / 2
+    # ── Draw rings from INNER to OUTER (matches original Pie Chart.py approach) ─
+    # Inner-most ring has radius = ring_width, outer-most has radius = 1.0.
+    # Each ring uses wedgeprops(width=ring_width) so it's a donut band.
+    # The innermost band's inner edge sits at 0, so there is NO white hole —
+    # the color fills all the way to the centre.
+    for ri, ring in enumerate(processed_rings):
+        # ri=0 → innermost;  ri=n_rings-1 → outermost
+        r_this  = ring_width * (ri + 1)          # outer edge of this ring
+        r_inner = r_this - ring_width             # inner edge (= 0 for ri=0)
+        radius_mid = (r_this + r_inner) / 2
 
         slices = ring["slices"]
         values = [s.get("value", 0) for s in slices]
         colors = [s["_color"] for s in slices]
-        total = ring["total"]
+        total  = ring["total"]
 
-        # Single ring: draw solid pie (no hole); multi-ring: draw donut ring
         if n_rings == 1:
+            # Solid pie: no width restriction
             wedges, _ = ax.pie(
                 values,
-                radius=r_outer,
+                radius=r_this,
                 colors=colors,
                 labels=None,
                 startangle=start_angle,
@@ -220,7 +224,7 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
         else:
             wedges, _ = ax.pie(
                 values,
-                radius=r_outer,
+                radius=r_this,
                 colors=colors,
                 labels=None,
                 startangle=start_angle,
@@ -238,23 +242,27 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
             arc_deg = abs(w.theta2 - w.theta1)
             label_str = _label_text(s["label"], val, total)
             n_chars = max(len(line) for line in label_str.split("\n"))
+            n_lines = label_str.count("\n") + 1
 
-            # Base font size: innermost ring larger, adapt to ring width
-            # ring_width in axes units ≈ inches at fw=12; 1 inch ≈ 72pt
-            ring_w_pt = ring_width * fw * 72 / 2.0   # rough pt per ring height
-            base_pt = min(ring_w_pt * 0.28, 18 - ri * 2)
-            base_pt = max(base_pt, 10.0)
-            fs = _adaptive_fontsize(arc_deg, radius_mid, n_chars, base_pt, min_pt=6.5)
+            # Font size: fit within the ring arc area
+            # Arc length in fig inches ≈ arc_rad * radius_mid * fw
+            arc_len_in = math.radians(arc_deg) * radius_mid * fw * 0.85
+            ring_h_in  = ring_width * fh * 0.70
+            # fit by width
+            fs_w = (arc_len_in / max(n_chars, 1)) * 65.0
+            # fit by height
+            fs_h = (ring_h_in / max(n_lines, 1)) * 62.0
+            fs = max(min(fs_w, fs_h, 22.0), 6.5)
 
-            # Rotation: align with slice tangent
+            # Rotation aligned to slice tangent (radial outward)
             rot = theta - 90
-            if ri > 0:  # outer rings: flip if on left half
-                pass
-            if 90 < rot % 360 < 270:
+            # Flip if label would be upside-down
+            norm_rot = rot % 360
+            if 90 < norm_rot < 270:
                 rot += 180
 
-            # Large slice: label inside
-            if arc_deg >= 8:
+            # Large slice (arc ≥ 7°): label inside the slice
+            if arc_deg >= 7:
                 ax.text(x, y, label_str,
                         ha="center", va="center",
                         fontsize=fs, fontweight="bold",
@@ -263,30 +271,22 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                         fontfamily=font,
                         zorder=10)
             else:
-                # Small slice: callout arrow
-                scale = 1.05 + ri * 0.12
-                x_out = scale * r_outer * math.cos(theta_rad)
-                y_out = scale * r_outer * math.sin(theta_rad)
+                # Thin slice: callout arrow outside
+                r_out = r_this + 0.08 + ri * 0.06
+                x_out = r_out * math.cos(theta_rad)
+                y_out = r_out * math.sin(theta_rad)
                 ha_align = "left" if x_out >= 0 else "right"
+                fs_small = max(min(fs, 10.0), 6.5)
                 ax.annotate(
                     label_str,
                     xy=(x, y),
                     xytext=(x_out, y_out),
                     arrowprops=dict(arrowstyle="->", lw=0.7, color="gray"),
                     ha=ha_align, va="center",
-                    fontsize=max(fs, 7.0), fontweight="bold",
+                    fontsize=fs_small, fontweight="bold",
                     fontfamily=font,
                     zorder=10,
                 )
-
-    # ── Fill center hole for multi-ring charts ───────────────────────────────
-    # The innermost donut ring leaves a white hole; fill it with a white disk
-    # so there is no visible gap at the center.
-    if n_rings > 1:
-        inner_r = outer_radius - n_rings * ring_width
-        if inner_r > 0:
-            fill = plt.Circle((0, 0), inner_r, color="white", zorder=8)
-            ax.add_patch(fill)
 
     # ── Title ─────────────────────────────────────────────────────────────────
     if title:

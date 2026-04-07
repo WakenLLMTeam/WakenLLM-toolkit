@@ -89,9 +89,9 @@ def render_pipeline(spec: Dict[str, Any], output_path: str) -> str:
     fw = float(spec.get("fig_width",
                max(THEME.FIG_W, cols_per_row * max(2.0, max_sublabel_len * 0.115))))
     fw = min(fw, 22.0)
-    # Height: taller when sublabels are multi-word
+    # Height: keep compact — blocks only need ~2.2in with sublabel, ~1.8in without
     fh_per_row = float(spec.get("fig_height",
-                                3.4 if has_sublabel else 2.6))
+                                2.2 if has_sublabel else 1.8))
 
     fig, axes = plt.subplots(rows, 1, figsize=(fw, fh_per_row * rows),
                              squeeze=False)
@@ -210,11 +210,32 @@ def render_pipeline(spec: Dict[str, Any], output_path: str) -> str:
         fig.text(0.5, 0.99, title, ha="center", va="top",
                  fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.95], pad=0.5)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.88 if title else 0.98, bottom=0.08)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=THEME.DPI, bbox_inches="tight",
                 facecolor=THEME.BG)
     plt.close(fig)
+
+    # Crop excess whitespace so the image fills the PPT slot cleanly
+    try:
+        from PIL import Image as _PIL
+        import numpy as _np
+        with _PIL.open(output_path) as im:
+            arr = _np.array(im.convert("RGB"))
+        white = (arr > 248).all(axis=2)
+        rows_ok = ~white.all(axis=1)
+        cols_ok = ~white.all(axis=0)
+        r0, r1 = int(rows_ok.argmax()), len(rows_ok) - int(rows_ok[::-1].argmax())
+        c0, c1 = int(cols_ok.argmax()), len(cols_ok) - int(cols_ok[::-1].argmax())
+        pad = 8  # pixels of breathing room
+        r0, r1 = max(0, r0 - pad), min(arr.shape[0], r1 + pad)
+        c0, c1 = max(0, c0 - pad), min(arr.shape[1], c1 + pad)
+        with _PIL.open(output_path) as im:
+            cropped = im.crop((c0, r0, c1, r1))
+            cropped.save(output_path)
+    except Exception:
+        pass  # PIL not available or crop failed — keep original
+
     return f"Pipeline diagram saved: {output_path}"
 
 

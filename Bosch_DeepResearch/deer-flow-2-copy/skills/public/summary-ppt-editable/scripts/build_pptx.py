@@ -163,9 +163,15 @@ def _add_cards(
       bullets   – list[str], bullet lines (optional)
       icon      – str, single emoji / symbol prepended to heading (optional)
       bg_rgb    – list[int, int, int], per-card background override (optional)
+      stat      – str, large highlight number/text shown in card footer (optional)
+      stat_label– str, small label below stat (optional)
 
-    Layout is auto-computed:
-      cols=0  → auto: 1→1 col, 2→2, 3→3, 4→2×2, 5-6→3 cols, 7+→3 cols
+    Layout:
+      - Card height is computed from actual content (heading + bullets) so
+        cards never have excess empty space.
+      - If the cards don't fill total_h, the leftover space below is used for
+        a bottom accent strip with per-card stat values (if any card has stat).
+      - cols=0 → auto: 1→1 col, 2→2, 3→3, 4→2×2, 5-6→3 cols, 7+→3 cols
     """
     n = len(cards)
     if n == 0:
@@ -186,37 +192,81 @@ def _add_cards(
 
     gap = Inches(0.12)
     card_w = (total_w - gap * (cols - 1)) / cols
-    card_h = (total_h - gap * (rows - 1)) / rows
 
+    # ── Compute natural card height from content ──────────────────────────────
+    # heading line ≈ Pt(13) * 1.4/72 in + space_after Pt(5)/72 ≈ 0.322in
+    # bullet line  ≈ Pt(11) * 1.4/72 in + space_after Pt(4)/72  ≈ 0.269in
+    # top bar = 0.055in, pad_y = 0.18in (top+bottom = 0.36in)
+    HEADING_LINE_H = Inches(0.33)
+    BULLET_LINE_H  = Inches(0.27)
+    BAR_H          = Inches(0.055)
+    PAD_Y          = Inches(0.18)
+    PAD_X          = Inches(0.16)
+
+    max_lines_per_row: List[int] = []
+    for row_i in range(rows):
+        max_lines = 0
+        for col_i in range(cols):
+            idx = row_i * cols + col_i
+            if idx >= n:
+                continue
+            card = cards[idx]
+            has_heading = bool((card.get("heading") or "").strip())
+            n_bullets = len([b for b in (card.get("bullets") or []) if (b or "").strip()])
+            lines = (1 if has_heading else 0) + n_bullets
+            max_lines = max(max_lines, lines)
+        max_lines_per_row.append(max_lines)
+
+    def _natural_card_h(n_lines: int) -> Any:
+        has_h = n_lines > 0
+        bullet_lines = max(0, n_lines - 1) if has_h else n_lines
+        return BAR_H + PAD_Y + HEADING_LINE_H + bullet_lines * BULLET_LINE_H + PAD_Y
+
+    row_heights = [_natural_card_h(m) for m in max_lines_per_row]
+
+    # Cap: don't exceed the slot height / rows (allow slight overflow into stat area)
+    max_row_h = (total_h - gap * (rows - 1)) / rows
+    row_heights = [min(h, max_row_h) for h in row_heights]
+
+    total_card_h = sum(row_heights) + gap * (rows - 1)
+    leftover = total_h - total_card_h  # space below cards
+
+    # ── Draw cards ────────────────────────────────────────────────────────────
     default_bg = card_bg_rgb or RGBColor(245, 247, 250)
+    row_tops: List[Any] = []
+    cur_top = top
+    for rh in row_heights:
+        row_tops.append(cur_top)
+        cur_top += rh + gap
 
     for idx, card in enumerate(cards):
         col_i = idx % cols
         row_i = idx // cols
         cx = left + col_i * (card_w + gap)
-        cy = top + row_i * (card_h + gap)
+        cy = row_tops[row_i]
+        ch = row_heights[row_i]
 
         bg = card.get("bg_rgb")
         bg_color = RGBColor(int(bg[0]), int(bg[1]), int(bg[2])) if bg and len(bg) == 3 else default_bg
-        rect = sld.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, card_w, card_h)
+
+        rect = sld.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, card_w, ch)
         rect.fill.solid()
         rect.fill.fore_color.rgb = bg_color
         rect.line.color.rgb = accent_rgb
         rect.line.width = Pt(1.0)
         rect.adjustments[0] = 0.05
 
-        bar_h = Inches(0.055)
-        bar = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, card_w, bar_h)
+        bar = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, cx, cy, card_w, BAR_H)
         bar.fill.solid()
         bar.fill.fore_color.rgb = accent_rgb
         bar.line.fill.background()
 
-        pad_x = Inches(0.16)
-        pad_y = Inches(0.18)
-        tb = sld.shapes.add_textbox(cx + pad_x, cy + bar_h + pad_y, card_w - pad_x * 2, card_h - bar_h - pad_y * 2)
+        tb = sld.shapes.add_textbox(cx + PAD_X, cy + BAR_H + PAD_Y,
+                                    card_w - PAD_X * 2, ch - BAR_H - PAD_Y * 2)
         tf = tb.text_frame
         tf.word_wrap = True
 
+        bullets = [b for b in (card.get("bullets") or []) if (b or "").strip()]
         first = True
         heading = (card.get("heading") or "").strip()
         icon = (card.get("icon") or "").strip()
@@ -234,13 +284,10 @@ def _add_cards(
             except Exception:
                 pass
 
-        for line in (card.get("bullets") or []):
-            line = (line or "").strip()
-            if not line:
-                continue
+        for line in bullets:
             p = tf.paragraphs[0] if first else tf.add_paragraph()
             first = False
-            p.text = f"• {_truncate(line, 35)}"
+            p.text = f"• {_truncate(line, 45)}"
             p.font.size = Pt(11)
             p.font.color.rgb = body_rgb
             p.space_after = Pt(4)
@@ -248,6 +295,67 @@ def _add_cards(
                 p.font.name = font_name
             except Exception:
                 pass
+
+    # ── Bottom stat strip (if leftover space ≥ 0.5in and any card has stat) ───
+    has_stats = any((card.get("stat") or "").strip() for card in cards)
+    if leftover >= Inches(0.45) and has_stats:
+        strip_top = top + total_card_h + Inches(0.08)
+        strip_h = leftover - Inches(0.08)
+        # Draw a light accent background strip
+        strip = sld.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            left, strip_top, total_w, strip_h,
+        )
+        strip.fill.solid()
+        strip.fill.fore_color.rgb = RGBColor(
+            accent_rgb.red, accent_rgb.green, accent_rgb.blue
+        ) if hasattr(accent_rgb, 'red') else accent_rgb
+        # Use very light tint
+        strip.fill.fore_color.rgb = RGBColor(
+            min(255, accent_rgb[0] + 220) if isinstance(accent_rgb, (list, tuple)) else 240,
+            min(255, accent_rgb[1] + 220) if isinstance(accent_rgb, (list, tuple)) else 245,
+            min(255, accent_rgb[2] + 220) if isinstance(accent_rgb, (list, tuple)) else 250,
+        )
+        strip.line.fill.background()
+
+        stat_w = total_w / max(cols, 1)
+        for col_i in range(cols):
+            # find the last row's card for this column
+            card_idx = (rows - 1) * cols + col_i
+            if card_idx >= n:
+                card_idx = col_i  # fallback to first row
+            if card_idx >= n:
+                continue
+            card = cards[card_idx]
+            stat = (card.get("stat") or "").strip()
+            stat_label = (card.get("stat_label") or "").strip()
+            if not stat:
+                continue
+            sx = left + col_i * stat_w
+            stat_box = sld.shapes.add_textbox(sx + Inches(0.1), strip_top + Inches(0.04),
+                                              stat_w - Inches(0.2), strip_h - Inches(0.08))
+            stf = stat_box.text_frame
+            stf.word_wrap = False
+            sp = stf.paragraphs[0]
+            sp.text = stat
+            sp.font.bold = True
+            sp.font.size = Pt(min(22, max(14, int(strip_h / 914400 * 48))))
+            sp.font.color.rgb = heading_rgb
+            sp.alignment = PP_ALIGN.CENTER
+            try:
+                sp.font.name = font_name
+            except Exception:
+                pass
+            if stat_label:
+                sp2 = stf.add_paragraph()
+                sp2.text = stat_label
+                sp2.font.size = Pt(9)
+                sp2.font.color.rgb = body_rgb
+                sp2.alignment = PP_ALIGN.CENTER
+                try:
+                    sp2.font.name = font_name
+                except Exception:
+                    pass
 
 
 def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RGBColor, size_pt: int) -> None:

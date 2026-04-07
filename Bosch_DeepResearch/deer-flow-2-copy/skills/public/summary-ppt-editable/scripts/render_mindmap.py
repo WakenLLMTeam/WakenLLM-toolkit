@@ -47,7 +47,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, fit_fontsize
 
 setup_matplotlib()
 
@@ -112,8 +112,10 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             transform=ax.transData, zorder=4
         )
         ax.add_patch(rect)
+        b_fs = fit_fontsize(label, node_w * fw * 0.85, node_h * fh * 0.85,
+                             start_pt=THEME.FS_BODY)
         ax.text(bx, by, label, ha="center", va="center",
-                fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold", zorder=5)
+                fontsize=b_fs, color=THEME.INK, fontweight="bold", zorder=5)
 
         # Children
         nc = len(children)
@@ -142,7 +144,9 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
             )
             ax.add_patch(crect)
             ax.text(cx, cy, child_label, ha="center", va="center",
-                    fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold", zorder=4,
+                    fontsize=fit_fontsize(child_label, child_w * fw * 0.80, child_h * fh * 0.80,
+                                             start_pt=THEME.FS_SMALL),
+                    color=THEME.INK, fontweight="bold", zorder=4,
                     multialignment="center")
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)

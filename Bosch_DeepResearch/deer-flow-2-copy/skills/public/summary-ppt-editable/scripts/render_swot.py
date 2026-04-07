@@ -120,44 +120,19 @@ def render_swot(spec: Dict[str, Any], output_path: str) -> str:
                 fontsize=THEME.FS_BODY, color="white",
                 fontweight="bold", transform=ax.transAxes, zorder=3)
 
-        # Subtitle
-        ax.text(bx + cell_w / 2, by + cell_h - header_h - 0.012,
-                subtitle, ha="center", va="top",
-                fontsize=THEME.FS_MICRO, color=THEME.MUTED,
-                style="italic", transform=ax.transAxes, zorder=3)
+        # subtitle removed per user request
 
         # Items
         for ii, item in enumerate(items[:5]):
-            iy = by + cell_h - header_h - 0.045 - ii * (cell_h * 0.165)
-            ax.text(bx + 0.012, iy,
+            iy = by + cell_h - header_h - 0.035 - ii * (cell_h * 0.162)
+            ax.text(bx + 0.014, iy,
                     f"• {item}",
                     ha="left", va="top",
-                    fontsize=THEME.FS_SMALL, color=THEME.INK,
-                    transform=ax.transAxes, zorder=3,
-                    wrap=True)
+                    fontsize=THEME.FS_BODY, color=THEME.INK,
+                    fontweight="bold",
+                    transform=ax.transAxes, zorder=3)
 
-    # Center label (subject)
-    if subject:
-        cx = 0.5
-        cy = y_start + gap + cell_h + gap / 2
-        ax.text(cx, cy, subject,
-                ha="center", va="center",
-                fontsize=THEME.FS_SMALL, color=THEME.INK,
-                fontweight="bold",
-                bbox=dict(boxstyle="round,pad=0.3",
-                          facecolor=THEME.SURFACE, edgecolor=THEME.BORDER,
-                          linewidth=0.8),
-                transform=ax.transAxes, zorder=5)
-
-    # Internal/External axis labels
-    ax.text(0.5, y_start + 2 * cell_h + 3 * gap + 0.01,
-            "← Internal →", ha="center", va="bottom",
-            fontsize=THEME.FS_MICRO, color=THEME.MUTED, style="italic",
-            transform=ax.transAxes)
-    ax.text(0.5, y_start - 0.005,
-            "← External →", ha="center", va="top",
-            fontsize=THEME.FS_MICRO, color=THEME.MUTED, style="italic",
-            transform=ax.transAxes)
+    # subject and axis labels intentionally removed for cleaner look
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

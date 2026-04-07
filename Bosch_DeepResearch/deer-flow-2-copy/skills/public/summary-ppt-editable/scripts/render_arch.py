@@ -80,7 +80,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, fit_fontsize
 
 setup_matplotlib()
 
@@ -180,8 +180,16 @@ def render_arch(spec: Dict[str, Any], output_path: str) -> str:
         block_y = band_mid - block_h_frac / 2
 
         # Adaptive font: shrink when many blocks per row
+        # Dynamic font: shrink if too many blocks per row
         label_fs  = max(THEME.FS_MICRO + 0.5, THEME.FS_BODY  - max(0, k - 3) * 0.5)
         sub_fs    = max(THEME.FS_MICRO - 0.5, THEME.FS_SMALL - max(0, k - 3) * 0.4)
+        # Further shrink using fit_fontsize based on actual block width in inches
+        _block_w_in = block_w * fw
+        _block_h_in = block_h_frac * fh
+        label_fs = min(label_fs, fit_fontsize("WWWWWWWWWWWWWWW", _block_w_in, _block_h_in * 0.5,
+                                              start_pt=label_fs))
+        sub_fs   = min(sub_fs,   fit_fontsize("WWWWWWWWWWWWWWWWWWWWWWWWW", _block_w_in, _block_h_in * 0.35,
+                                              start_pt=sub_fs))
         badge_fs  = max(THEME.FS_MICRO - 1.0, THEME.FS_MICRO - max(0, k - 4) * 0.3)
 
         # Max chars for sublabel before wrapping (proportional to block width)

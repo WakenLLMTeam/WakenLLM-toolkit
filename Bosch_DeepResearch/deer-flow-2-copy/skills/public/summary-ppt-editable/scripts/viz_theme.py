@@ -95,6 +95,39 @@ class Theme:
     FIG_H     = 4.0
 
 
+
+
+def fit_fontsize(text: str, box_width_in: float, box_height_in: float,
+                 start_pt: float, min_pt: float = 5.5) -> float:
+    """
+    Estimate the largest font size (pt) that fits `text` in a box of
+    `box_width_in` × `box_height_in` inches.
+
+    Uses a simple character-width heuristic (no renderer needed):
+      - average char width ≈ 0.55 × font_pt / 72  inches  (proportional font)
+      - line height        ≈ 1.35 × font_pt / 72  inches
+
+    Works offline (no Agg renderer required), so it can be called before
+    fig/ax exist.  The result is an approximation — err on the conservative side.
+    """
+    if not text or box_width_in <= 0 or box_height_in <= 0:
+        return max(start_pt, min_pt)
+
+    lines = text.replace("\\n", "\n").split("\n")
+    n_lines = len(lines)
+    max_chars = max(len(l) for l in lines) if lines else 1
+
+    pt = float(start_pt)
+    while pt > min_pt:
+        char_w = 0.55 * pt / 72       # inches per character
+        line_h = 1.35 * pt / 72       # inches per line
+        text_w = max_chars * char_w
+        text_h = n_lines * line_h
+        if text_w <= box_width_in * 0.92 and text_h <= box_height_in * 0.90:
+            break
+        pt -= 0.5
+    return max(pt, min_pt)
+
 THEME = Theme()
 
 

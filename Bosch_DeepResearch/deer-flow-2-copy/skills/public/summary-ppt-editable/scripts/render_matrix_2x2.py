@@ -78,11 +78,11 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
         ax.add_patch(rect)
         if q["label"]:
             lx = qx + 0.25
-            ly = qy + 0.44
+            ly = qy + 0.46
             ax.text(lx, ly, q["label"],
                     ha="center", va="top",
-                    fontsize=THEME.FS_SMALL, color=THEME.MUTED,
-                    fontweight="bold", style="italic",
+                    fontsize=THEME.FS_H1, color=THEME.INK,
+                    fontweight="bold",
                     transform=ax.transAxes, zorder=2)
 
     # Divider lines
@@ -93,10 +93,10 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
 
     # Axis labels
     ax.text(0.5, 0.01, x_label, ha="center", va="bottom",
-            fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
+            fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold",
             transform=ax.transAxes)
     ax.text(0.01, 0.5, y_label, ha="left", va="center",
-            fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
+            fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold",
             rotation=90, transform=ax.transAxes)
 
     # Plot items
@@ -105,12 +105,12 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
         iy = float(it.get("y", 0.5)) * 0.96 + 0.02
         color = it.get("color", THEME.ACCENT)
         label = it.get("label", "")
-        ax.scatter([ix], [iy], s=160, color=color, zorder=5,
+        ax.scatter([ix], [iy], s=220, color=color, zorder=5,
                    edgecolors="white", linewidths=1.2,
                    transform=ax.transAxes)
         ax.annotate(label, xy=(ix, iy), xytext=(6, 4),
                     textcoords="offset points",
-                    fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
+                    fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
                     transform=ax.transAxes, zorder=6)
 
     if title:

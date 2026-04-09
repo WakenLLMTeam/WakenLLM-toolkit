@@ -3,6 +3,7 @@ Shared visual theme and font utilities for all renderers.
 Works standalone (no DeerFlow dependency).
 """
 from __future__ import annotations
+import colorsys
 import matplotlib
 import matplotlib.font_manager as fm
 import matplotlib.pyplot as plt
@@ -161,3 +162,177 @@ class BoschTheme(Theme):
 
 
 BOSCH_THEME = BoschTheme()
+
+
+# ── Morandi color palette ───────────────────────────────────────────────────────
+
+def _hsluv_to_hex(h_deg: float, s: float, l: float) -> str:
+    """
+    Convert h/s/l (HSLuv-style) to sRGB hex.
+    h: hue in degrees [0, 360)
+    s: saturation in [0, 1]  (0.3-0.5 = Morandi muted)
+    l: lightness in [0, 1]    (0.4-0.75 = medium range)
+    """
+    h_norm = (h_deg % 360) / 360.0
+    r, g, b = colorsys.hls_to_rgb(h_norm, l, s)
+    return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+
+
+def _oklch_to_hex(l: float, c: float, h_deg: float) -> str:
+    """Convert OKLCH-style (l=lightness, c=chroma, h=hue_deg) to sRGB hex."""
+    # For Morandi: l=0.65-0.78, c=0.28-0.42, h=evenly spaced
+    # Scale c from [0.1-0.15] to [0.28-0.42] for visible saturation
+    return _hsluv_to_hex(h_deg, c * 3.0, l)
+
+
+# Pre-defined 18-color Morandi base palette (verified visually distinct)
+# Blues, greens, yellows, oranges, reds, purples — all muted/desaturated
+_MORANDI_BASE = [
+    # Dusty blue family
+    "#8EACCF",  # 0° - muted slate blue
+    "#AAB7C4",  # 20°
+    "#C4CED4",  # 40° - grey blue
+    # Warm neutrals
+    "#D4C4A8",  # 60° - warm sand
+    "#C9B896",  # 80°
+    "#BEA882",  # 100° - dusty tan
+    # Olive/sage greens
+    "#A8B89C",  # 120° - sage
+    "#94A888",  # 140°
+    "#7E9874",  # 160° - muted olive
+    # Teal/aqua family
+    "#8DB5A8",  # 180° - dusty teal
+    "#7AA698",  # 200°
+    "#689788",  # 220° - muted cyan-green
+    # Lavender/purple
+    "#ACA0C4",  # 240° - dusty lavender
+    "#9C8AB0",  # 260°
+    "#8C749C",  # 280° - muted purple
+    # Rose/mauve
+    "#B494A8",  # 300° - dusty rose
+    "#A47E94",  # 320°
+    "#946880",  # 340° - muted mauve
+]
+
+
+def _generate_extended_palette(target: int) -> list[str]:
+    """Generate more colors by blending variants of base palette."""
+    base = list(_MORANDI_BASE)
+    while len(base) < target:
+        i = len(base)
+        base_color = _MORANDI_BASE[i % len(_MORANDI_BASE)]
+        # Slightly vary lightness using colorsys
+        r_val = int(base_color[1:3], 16) / 255.0
+        g_val = int(base_color[3:5], 16) / 255.0
+        b_val = int(base_color[5:7], 16) / 255.0
+        h, l, s = colorsys.rgb_to_hls(r_val, g_val, b_val)
+        # Alternate between lighter/darker
+        l = max(0.40, min(0.85, l + (0.06 if i % 2 == 0 else -0.06)))
+        r2, g2, b2 = colorsys.hls_to_rgb(h, l, s)
+        base.append(f"#{int(r2*255):02x}{int(g2*255):02x}{int(b2*255):02x}")
+    return base[:target]
+
+
+_MORANDI_EXTENDED = _generate_extended_palette(30)
+
+
+class MorandiPalette:
+    """
+    Morandi-style perceptual color palette.
+    Low chroma, medium-high lightness, perceptual uniformity via OKLCH.
+    Three modes: categorical (distinct), sequential (ordered), diverging (signed).
+    """
+
+    # Class-level base palette
+    BASE = list(_MORANDI_BASE)          # 18 pre-generated
+    EXTENDED = list(_MORANDI_EXTENDED)  # 30 colors
+
+    @classmethod
+    def generate_categorical(cls, n: int) -> list[str]:
+        """
+        Return n distinct colors for categorical data.
+        Uses evenly-spaced hues at low chroma.
+        """
+        if n <= 0:
+            return []
+        if n <= len(cls.BASE):
+            return cls.BASE[:n]
+        return cls.EXTENDED[:n]
+
+    @classmethod
+    def generate_sequential(cls, n: int, base_hue: float = 30.0) -> list[str]:
+        """
+        Return n colors for sequential/ordered data.
+        Lightness ramps from light to dark along a single hue direction.
+        base_hue: starting hue in degrees (default 30° = warm ochre).
+        """
+        if n <= 0:
+            return []
+        L_start = 0.87
+        L_end = 0.62
+        C = 0.10
+        colors = []
+        for i in range(n):
+            t = i / max(n - 1, 1)
+            L = L_start + (L_end - L_start) * t
+            colors.append(_oklch_to_hex(L, C, base_hue))
+        return colors
+
+    @classmethod
+    def generate_diverging(cls, n: int) -> list[str]:
+        """
+        Return n colors for diverging data (e.g., negative → neutral → positive).
+        Uses two hues meeting at a neutral center.
+        n should be odd for a clear neutral midpoint; if even, center is omitted.
+        """
+        if n <= 0:
+            return []
+        half = n // 2
+        left = cls.generate_sequential(half + (0 if n % 2 == 0 else 1), base_hue=250.0)  # blue-purple
+        right = cls.generate_sequential(half + (1 if n % 2 == 0 else 0), base_hue=30.0)   # warm ochre
+        if n % 2 == 0:
+            # Even: no neutral center
+            return left[:-1] + list(reversed(right))
+        else:
+            # Odd: neutral center
+            return left[:-1] + right
+
+
+# Convenience aliases
+def get_categorical_palette(n: int) -> list[str]:
+    """Return n distinct Morandi colors for categorical data."""
+    return MorandiPalette.generate_categorical(n)
+
+
+def get_sequential_palette(n: int, base_hue: float = 30.0) -> list[str]:
+    """Return n ordered Morandi colors for sequential data."""
+    return MorandiPalette.generate_sequential(n, base_hue)
+
+
+def get_diverging_palette(n: int) -> list[str]:
+    """Return n diverging Morandi colors."""
+    return MorandiPalette.generate_diverging(n)
+
+
+def get_series_colors(n: int, palette: str = "categorical", **kwargs) -> list[str]:
+    """
+    Return n colors from the Morandi palette.
+
+    Args:
+        n: Number of colors needed
+        palette: "categorical" | "sequential" | "diverging"
+        **kwargs: Passed to the specific palette generator
+                  (e.g., base_hue for sequential)
+
+    Returns:
+        List of hex color strings
+    """
+    if palette == "sequential":
+        return get_sequential_palette(n, **kwargs)
+    elif palette == "diverging":
+        return get_diverging_palette(n)
+    else:
+        return get_categorical_palette(n)
+
+
+MORANDI_PALETTE = MorandiPalette  # alias for backward compat

@@ -40,14 +40,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
-
-_DEFAULT_COLORS = [
-    THEME.ACCENT, "#16a34a", "#f97316", "#8b5cf6",
-    "#0891b2", "#dc2626", "#65a30d", "#d97706",
-]
 
 
 def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
@@ -75,17 +70,18 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_axisbelow(True)
 
     all_x, all_y = [], []
+    morandi_colors = get_categorical_palette(len(series))
     # Collect actual point colors for legend (use first point per series)
     series_colors = []
     for si, ser in enumerate(series):
         pts = ser.get("points", [])
-        c = pts[0].get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)]) if pts else _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)]
+        c = pts[0].get("color", morandi_colors[si % len(morandi_colors)]) if pts else morandi_colors[si % len(morandi_colors)]
         series_colors.append(c)
 
     import math as _math
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
-            color = pt.get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)])
+            color = pt.get("color", morandi_colors[si % len(morandi_colors)])
             size  = pt.get("size", 150)
             x, y  = pt.get("x", 0), pt.get("y", 0)
             all_x.append(x)

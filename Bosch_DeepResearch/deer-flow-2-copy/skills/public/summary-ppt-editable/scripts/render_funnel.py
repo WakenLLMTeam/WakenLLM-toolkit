@@ -33,14 +33,9 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_sequential_palette
 
 setup_matplotlib()
-
-_DEFAULT_COLORS = [
-    "#dbeafe", "#bfdbfe", "#93c5fd", "#60a5fa",
-    "#3b82f6", "#2563eb", "#1d4ed8", "#1e40af",
-]
 
 
 def _fmt_value(v: float, unit: str) -> str:
@@ -63,6 +58,7 @@ def render_funnel(spec: Dict[str, Any], output_path: str) -> str:
     fw = float(spec.get("fig_width", 9.0))
     fh = float(spec.get("fig_height", 6.0))
     n = len(stages)
+    morandi_colors = get_sequential_palette(n)
 
     fig, ax = plt.subplots(figsize=(fw, fh))
     fig.patch.set_facecolor(THEME.BG)
@@ -82,7 +78,7 @@ def render_funnel(spec: Dict[str, Any], output_path: str) -> str:
         bx = (1 - bar_w) / 2
         by = 0.92 - (i + 1) * (bar_h + gap)
 
-        color = stage.get("color", _DEFAULT_COLORS[i % len(_DEFAULT_COLORS)])
+        color = stage.get("color", morandi_colors[i % len(morandi_colors)])
         rect = mpatches.FancyBboxPatch(
             (bx, by), bar_w, bar_h - 0.004,
             boxstyle="round,pad=0.005",

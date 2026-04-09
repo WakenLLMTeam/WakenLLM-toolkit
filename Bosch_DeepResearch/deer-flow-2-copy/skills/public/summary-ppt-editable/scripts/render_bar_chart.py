@@ -32,14 +32,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
-
-_DEFAULT_COLORS = [
-    THEME.ACCENT, "#16a34a", "#f97316", "#8b5cf6",
-    "#0891b2", "#dc2626", "#65a30d", "#d97706",
-]
 
 
 def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
@@ -73,11 +68,12 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
     n_cat = len(categories)
     n_ser = len(series)
     x = np.arange(n_cat)
+    morandi_colors = get_categorical_palette(n_ser)
 
     if mode == "stacked":
         bottoms = np.zeros(n_cat)
         for si, ser in enumerate(series):
-            color = ser.get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)])
+            color = ser.get("color", morandi_colors[si % len(morandi_colors)])
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
             if orientation == "horizontal":
                 bars = ax.barh(x, vals, left=bottoms, color=color,
@@ -108,7 +104,7 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
         group_w    = 1.0 - group_gap                        # total bar area per x-unit
         bar_w      = (group_w - bar_gap * (n_ser - 1)) / n_ser  # width of each individual bar
         for si, ser in enumerate(series):
-            color = ser.get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)])
+            color = ser.get("color", morandi_colors[si % len(morandi_colors)])
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
             # offset so the group is centred on x; bars touch each other
             offset = -group_w / 2 + si * (bar_w + bar_gap) + bar_w / 2

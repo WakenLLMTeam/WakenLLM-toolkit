@@ -88,7 +88,8 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
     # Find the longest child label across ALL branches, then determine the
     # largest font size that fits within a reasonable child-node width.
     # This gives ONE consistent font size for all child nodes.
-    all_children = [c for b in branches for c in b.get("children", [])]
+    all_children = [c.get("label", "") if isinstance(c, dict) else str(c)
+                   for b in branches for c in b.get("children", [])]
     longest_child = max(all_children, key=len) if all_children else "Label"
     # Available width for a child node ≈ (1 - R_child) * fw * 0.85 inches
     # (the space beyond R_child to the axes edge, with some padding)
@@ -141,6 +142,8 @@ def render_mindmap(spec: Dict[str, Any], output_path: str) -> str:
         color = branch.get("color", _DEFAULT_BRANCH_COLORS[bi % len(_DEFAULT_BRANCH_COLORS)])
         label = branch.get("label", "")
         children: List[str] = branch.get("children", [])
+        # Normalize: children may be dicts ({"label": "..."}) or plain strings
+        children = [c.get("label", "") if isinstance(c, dict) else str(c) for c in children]
 
         # Line: center → branch — solid black
         ax.plot([0, bx], [0, by], color="black", lw=1.8, zorder=1)

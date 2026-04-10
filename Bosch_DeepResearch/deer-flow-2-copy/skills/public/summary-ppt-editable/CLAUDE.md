@@ -9,7 +9,8 @@ summary-ppt-editable/
 ├── SKILL.md                  # Agent-facing spec (LLM reads this at runtime)
 ├── CLAUDE.md                 # Developer reference (this file)
 ├── scripts/
-│   ├── agent_ppt.py          # One-command entry point: topic → PPTX
+│   ├── agent_ppt.py          # One-command entry point: topic → PPTX (batch viz)
+│   ├── slides_agent.py        # Per-slide agent: topic → PPTX (per-slide viz decisions)
 │   ├── llm_planner.py        # Calls LLM to generate deck plan JSON
 │   ├── build_deck.py         # Resolves viz specs → PNGs, then calls build_pptx
 │   ├── build_pptx.py         # Assembles final PPTX from plan + resolved images
@@ -672,6 +673,47 @@ Override with `"cards_cols": N`. Each card: `heading`, optional `icon` (emoji), 
 ---
 
 ## Running the scripts
+
+### Per-slide agent (slides_agent.py)
+
+`slides_agent.py` differs from `agent_ppt.py` in one critical way:
+
+| | `agent_ppt.py` | `slides_agent.py` |
+|---|---|---|
+| Viz decision | LLM decides all viz types **upfront** in one shot | LLM decides viz type **per slide**, one at a time |
+| Rendering | `build_deck` batch-renders all viz after plan is complete | Renderer called **immediately** after each per-slide decision |
+| Flexibility | Viz type locked in by the time plan is generated | Agent can adapt viz choice based on slide content context |
+
+Use `slides_agent.py` when you want the viz selection to be responsive to each slide's specific content goal rather than pre-baked in a global plan.
+
+```bash
+cd skills/public/summary-ppt-editable/scripts
+
+# Full pipeline: topic → per-slide decisions → PPTX
+python slides_agent.py \
+  --topic "L2 to L3 autonomous driving evolution" \
+  --output /tmp/deck.pptx \
+  --slides 8 \
+  --theme bosch
+
+# Inspect per-slide decisions without rendering
+python slides_agent.py \
+  --topic "Bosch ADAS competitive analysis" \
+  --slides 6 \
+  --decisions-only \
+  --output /tmp/decisions.json
+
+# Use existing outline JSON (skip Stage 1)
+python slides_agent.py \
+  --outline @my_outline.json \
+  --output /tmp/deck.pptx \
+  --theme default
+
+# Use an existing outline inline (JSON string)
+python slides_agent.py \
+  --outline '[{"slide_number":1,"type":"title","title":"Deck Title"}]' \
+  --output /tmp/deck.pptx
+```
 
 ### One-command (topic → PPTX)
 

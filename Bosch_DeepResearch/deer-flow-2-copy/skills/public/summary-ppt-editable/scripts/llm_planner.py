@@ -300,7 +300,11 @@ def _call_anthropic(system: str, prompt: str, model: str) -> str:
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
-    return msg.content[0].text
+    # Skip ThinkingBlocks (extended thinking) and find the first TextBlock
+    for block in msg.content:
+        if block.type == "text":
+            return block.text
+    raise ValueError(f"No text block in Anthropic response: {msg.content}")
 
 
 def _call_openai(system: str, prompt: str, model: str,
@@ -358,7 +362,7 @@ def _call_llm(system: str, prompt: str, backend: str, model: str) -> str:
     if backend == "custom":
         return _call_openai(
             system, prompt,
-            model or os.environ.get("CUSTOM_LLM_MODEL", "gpt-4o"),
+            model or os.environ.get("CUSTOM_LLM_MODEL", "gpt-5.4"),
             base_url=os.environ["CUSTOM_LLM_BASE_URL"],
             api_key=os.environ.get("CUSTOM_LLM_API_KEY"),
         )
@@ -382,9 +386,17 @@ def _extract_json(raw: str) -> Dict[str, Any]:
     text = re.sub(r"\s*~~~+$", "", text)
     text = text.strip()
 
-    start = text.find("{")
-    if start == -1:
-        raise ValueError("No JSON object found in LLM response")
+    # Support both JSON objects ({...}) and arrays ([...])
+    obj_start = text.find("{")
+    arr_start = text.find("[")
+    if arr_start != -1 and (obj_start == -1 or arr_start < obj_start):
+        start = arr_start
+        end_char = "]"
+    elif obj_start != -1:
+        start = obj_start
+        end_char = "}"
+    else:
+        raise ValueError("No JSON object or array found in LLM response")
 
     # Walk chars tracking depth, but skip content inside strings
     depth = 0
@@ -402,11 +414,11 @@ def _extract_json(raw: str) -> Dict[str, Any]:
             continue
         if in_string:
             continue
-        if ch == "{":
+        if ch in ("{", "["):
             depth += 1
-        elif ch == "}":
+        elif ch in ("}", "]"):
             depth -= 1
-            if depth == 0:
+            if depth == 0 and ch == end_char:
                 return json.loads(text[start: i + 1])
 
     raise ValueError("Incomplete JSON object in LLM response")

@@ -38,14 +38,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
-
-_DEFAULT_COLORS = [
-    THEME.ACCENT, "#16a34a", "#f97316", "#8b5cf6",
-    "#0891b2", "#dc2626", "#65a30d", "#d97706",
-]
 
 
 def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
@@ -79,9 +74,10 @@ def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
         ax.set_yscale("log")
 
     x = np.arange(len(x_labels))
+    morandi_colors = get_categorical_palette(len(series))
 
     for si, ser in enumerate(series):
-        color = ser.get("color", _DEFAULT_COLORS[si % len(_DEFAULT_COLORS)])
+        color = ser.get("color", morandi_colors[si % len(morandi_colors)])
         vals = np.array(ser.get("values", []), dtype=float)
         name = ser.get("name", "")
         marker = ser.get("marker", "o")

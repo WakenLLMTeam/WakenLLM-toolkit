@@ -177,6 +177,13 @@ Slide to decide on:
   Deck title: {deck_title}
   Theme: {theme_instruction}
 
+Viz diversity tracker (already used in this deck):
+{diversity_hint}
+
+DIVERSITY RULE: Strongly prefer viz types NOT in the "already used" list above.
+Types marked [EXHAUSTED] must NOT be used — pick a different type.
+Aim to introduce a new viz type on every slide.
+
 Output a single JSON decision object now."""
 
 
@@ -519,6 +526,41 @@ Return ONLY a JSON object:
 """).strip()
 
 
+def _build_diversity_hint(used_viz_types: Dict[str, int], max_per_type: int) -> str:
+    """
+    Build a diversity hint with soft penalty tiers based on use count.
+
+    Tiers:
+      0 uses  → STRONGLY PREFERRED  (fresh)
+      1 use   → DEPRIORITIZED       (soft avoid — only pick if clearly best fit)
+      2 uses  → STRONGLY AVOID      (heavy penalty — pick fresh type instead)
+      3+ uses → DO NOT USE          (hard block)
+    """
+    ALL_TYPES = [
+        "timeline", "flowchart", "comparison", "pipeline", "arch",
+        "bar_chart", "line_chart", "scatter", "heatmap", "waterfall",
+        "funnel", "radar", "mindmap", "tree", "matrix_2x2",
+        "venn", "onion", "gantt", "swot",
+    ]
+    unused = [t for t in ALL_TYPES if t not in used_viz_types]
+    used_once  = [t for t, n in used_viz_types.items() if n == 1]
+    used_twice = [t for t, n in used_viz_types.items() if n == 2]
+    used_heavy = [t for t, n in used_viz_types.items() if n >= 3]
+
+    lines = []
+    if unused:
+        lines.append(f"  [STRONGLY PREFERRED — not yet used]: {', '.join(unused)}")
+    if used_once:
+        lines.append(f"  [DEPRIORITIZED — used once, avoid if a fresh type fits]: {', '.join(used_once)}")
+    if used_twice:
+        lines.append(f"  [STRONGLY AVOID — used twice, pick a fresh type instead]: {', '.join(used_twice)}")
+    if used_heavy:
+        lines.append(f"  [DO NOT USE — used 3+ times]: {', '.join(used_heavy)}")
+    if not lines:
+        lines.append("  (none used yet — all 19 types are available)")
+    return "\n".join(lines)
+
+
 def _decide_slide_viz(
     slide: Dict[str, Any],
     slide_index: int,
@@ -527,6 +569,8 @@ def _decide_slide_viz(
     backend: str,
     model: str,
     theme: str,
+    used_viz_types: Optional[Dict[str, int]] = None,
+    max_per_type: int = 2,
 ) -> Dict[str, Any]:
     """Ask LLM whether this slide needs a viz and which type. Retries once on invalid spec."""
     theme_instruction = "Bosch Red accent (#E20015)" if theme == "bosch" else "blue accent (#2563eb)"
@@ -535,6 +579,7 @@ def _decide_slide_viz(
     content_str = "\n  ".join(f"- {b}" for b in content) if content else "(none)"
 
     sn = slide.get("slide_number", slide_index + 1)
+    diversity_hint = _build_diversity_hint(used_viz_types or {}, max_per_type)
 
     user = _SLIDE_VIZ_DECISION_USER_TEMPLATE.format(
         slide_number=sn,
@@ -543,6 +588,7 @@ def _decide_slide_viz(
         content=content_str,
         deck_title=deck_title,
         theme_instruction=theme_instruction,
+        diversity_hint=diversity_hint,
     )
 
     raw = llm_planner._call_llm(_SLIDE_VIZ_DECISION_SYSTEM, user, backend, model)
@@ -625,6 +671,7 @@ def build_slides_pptx(
     assets_dir: Optional[str] = None,
     two_stage: bool = True,
     outline: Optional[List[Dict[str, Any]]] = None,
+    max_per_type: int = 2,
 ) -> str:
     """
     Full pipeline: topic → per-slide outline → per-slide viz decision → render → PPTX.
@@ -685,12 +732,14 @@ def build_slides_pptx(
             viz_type = viz.get("type", "?")
             print(f"[slides_agent]   outline viz: {viz_type} (skipping decision)", file=sys.stderr)
         else:
-            # LLM decides viz
+            # LLM decides viz — pass current usage so it can diversify
             try:
                 decision = _decide_slide_viz(
                     slide, i, len(slide_list),
                     deck_title=topic, backend=backend, model=model,
                     theme=theme,
+                    used_viz_types=dict(viz_types_used),
+                    max_per_type=max_per_type,
                 )
             except Exception as exc:
                 print(f"[slides_agent]   WARNING slide {sn} viz decision failed: {exc}", file=sys.stderr)

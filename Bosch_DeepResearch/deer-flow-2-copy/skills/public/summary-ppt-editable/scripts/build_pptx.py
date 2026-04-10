@@ -26,6 +26,10 @@ def _add_picture_fit(slide, img_path: str, box_left, box_top, box_w, box_h):
     Insert an image preserving its original aspect ratio, fitted (letterboxed)
     inside the given bounding box and centred within it.
     Avoids the distortion caused by passing both width and height to add_picture.
+
+    Returns (actual_left, actual_top, actual_w, actual_h) — the real pixel
+    bounds of the rendered image (after letterboxing), so callers can place
+    captions or other elements tightly below/beside the image.
     """
     from PIL import Image as _PILImage
     with _PILImage.open(img_path) as im:
@@ -47,13 +51,17 @@ def _add_picture_fit(slide, img_path: str, box_left, box_top, box_w, box_h):
     offset_left = (box_w - fit_w) / 2
     offset_top  = (box_h - fit_h) / 2
 
+    actual_left = box_left + offset_left
+    actual_top  = box_top  + offset_top
+
     slide.shapes.add_picture(
         img_path,
-        box_left + offset_left,
-        box_top  + offset_top,
+        actual_left,
+        actual_top,
         width=fit_w,
         height=fit_h,
     )
+    return actual_left, actual_top, fit_w, fit_h
 
 
 
@@ -543,11 +551,18 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 fig_h = slide_h - fig_top - Inches(0.35)
                 fig_left = left_margin
                 fig_w = full_text_w
+                _actual = None
                 if img_path and os.path.isfile(img_path):
-                    _add_picture_fit(sld, img_path, fig_left, fig_top, fig_w, fig_h)
+                    _actual = _add_picture_fit(sld, img_path, fig_left, fig_top, fig_w, fig_h)
                 cap = fig.get("caption")
                 if cap:
-                    cb = sld.shapes.add_textbox(fig_left, slide_h - Inches(0.38), fig_w, Inches(0.32))
+                    if _actual:
+                        _al, _at, _aw, _ah = _actual
+                        cap_top = _at + _ah + Inches(0.05)
+                    else:
+                        cap_top = slide_h - Inches(0.38)
+                        _al, _aw = fig_left, fig_w
+                    cb = sld.shapes.add_textbox(_al, cap_top, _aw, Inches(0.32))
                     ctf = cb.text_frame
                     cp = ctf.paragraphs[0]
                     cp.text = str(cap)
@@ -618,8 +633,9 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
 
                 pic_w = full_text_w
                 pic_left = left_margin
+                _actual_b = None
                 if img_path and os.path.isfile(img_path):
-                    _add_picture_fit(sld, img_path, pic_left, fig_top, pic_w, fig_h)
+                    _actual_b = _add_picture_fit(sld, img_path, pic_left, fig_top, pic_w, fig_h)
                 else:
                     ph = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, pic_left, fig_top, pic_w, fig_h)
                     ph.fill.background()
@@ -633,8 +649,13 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                     tfp0.font.color.rgb = body_rgb
                     tfp0.alignment = PP_ALIGN.CENTER
                 if cap:
-                    cap_top = fig_top + fig_h + Inches(0.04)
-                    cb = sld.shapes.add_textbox(pic_left, cap_top, pic_w, cap_h)
+                    if _actual_b:
+                        _al, _at, _aw, _ah = _actual_b
+                        cap_top = _at + _ah + Inches(0.05)
+                    else:
+                        cap_top = fig_top + fig_h + Inches(0.04)
+                        _al, _aw = pic_left, pic_w
+                    cb = sld.shapes.add_textbox(_al, cap_top, _aw, cap_h)
                     ctf = cb.text_frame
                     cp = ctf.paragraphs[0]
                     cp.text = _truncate(str(cap), 60)
@@ -652,10 +673,11 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 bf.word_wrap = True
                 bf.vertical_anchor = MSO_ANCHOR.TOP
                 _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
-                _add_picture_fit(sld, img_path, pic_left, pic_top, pic_w, pic_h)
+                _actual_r = _add_picture_fit(sld, img_path, pic_left, pic_top, pic_w, pic_h)
                 cap = fig.get("caption")
                 if cap:
-                    cb = sld.shapes.add_textbox(pic_left, pic_top + pic_h + Inches(0.08), pic_w, Inches(0.45))
+                    _al, _at, _aw, _ah = _actual_r
+                    cb = sld.shapes.add_textbox(_al, _at + _ah + Inches(0.05), _aw, Inches(0.45))
                     ctf = cb.text_frame
                     cp = ctf.paragraphs[0]
                     cp.text = str(cap)

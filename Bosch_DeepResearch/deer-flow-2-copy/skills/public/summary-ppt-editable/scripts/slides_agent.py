@@ -484,6 +484,20 @@ def _normalize_viz_spec(viz: Dict[str, Any]) -> Dict[str, Any]:
             if "detail" not in stage and "annotation" in stage:
                 stage["detail"] = stage["annotation"]
 
+    elif vt == "gantt":
+        # LLM sometimes returns start/end as strings instead of ints
+        for task in viz.get("tasks") or []:
+            for key in ("start", "end"):
+                if key in task:
+                    try:
+                        task[key] = int(task[key])
+                    except (ValueError, TypeError):
+                        task[key] = 0
+        for group in viz.get("groups") or []:
+            rows = group.get("rows")
+            if isinstance(rows, list):
+                group["rows"] = [int(r) for r in rows if str(r).isdigit()]
+
     elif vt == "matrix_2x2":
         # LLM sometimes returns quadrants as a list instead of a dict
         qs = viz.get("quadrants")
@@ -642,10 +656,10 @@ Requirements:
 - For pipeline: provide stages (≥2) with label and sublabel
 - For timeline: provide stages (≥2) with label and year
 - For radar: provide dimensions (≥3) and players (≥1) with score arrays
-- For arch: each layer needs name + color + blocks (each block: label + optional sublabel + optional badge). Example: {"name": "Application", "color": "#dbeafe", "blocks": [{"label": "Planner", "sublabel": "Behavior"}, {"label": "AEB"}]}
-- For mindmap: branches = [{"label": "BranchName", "color": "#dbeafe", "children": [{"label": "Child1"}, {"label": "Child2"}]}]
-- For tree: root = {"label": "RootName", "color": "#dbeafe", "children": [{"label": "Child", "children": []}]}
-- For flowchart: nodes = [{"id": "n1", "label": "NodeLabel", "shape": "rect", "color": "#dbeafe"}], edges = [{"from": "n1", "to": "n2", "label": "edge label"}]
+- For arch: each layer needs name + color + blocks (each block: label + optional sublabel + optional badge). Example: {{"name": "Application", "color": "#dbeafe", "blocks": [{{"label": "Planner", "sublabel": "Behavior"}}, {{"label": "AEB"}}]}}
+- For mindmap: branches = [{{"label": "BranchName", "color": "#dbeafe", "children": [{{"label": "Child1"}}, {{"label": "Child2"}}]}}]
+- For tree: root = {{"label": "RootName", "color": "#dbeafe", "children": [{{"label": "Child", "children": []}}]}}
+- For flowchart: nodes = [{{"id": "n1", "label": "NodeLabel", "shape": "rect", "color": "#dbeafe"}}], edges = [{{"from": "n1", "to": "n2", "label": "edge label"}}]
 - All labels must be ≤20 chars unless otherwise specified in the type constraints
 
 Return ONLY a JSON object:

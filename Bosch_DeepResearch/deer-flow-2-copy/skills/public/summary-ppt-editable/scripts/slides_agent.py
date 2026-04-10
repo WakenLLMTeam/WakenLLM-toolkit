@@ -70,7 +70,7 @@ Schema (one element per slide):
 
 Rules:
 - title slide → type:"title", no bullets
-- section dividers → type:"section", no bullets, 1-2 words title
+- section dividers → type:"section", no bullets, title MUST be a short meaningful phrase (5-15 chars), NOT a single word (e.g. "小鹏的智驾定位与战略" not "定位")
 - content slides → type:"content", 2-5 bullets, each ≤60 chars
 - summary/closing → type:"summary"
 - DO NOT include viz specs, figure objects, or image_path — those are added later
@@ -483,6 +483,22 @@ def _normalize_viz_spec(viz: Dict[str, Any]) -> Dict[str, Any]:
         for stage in stages:
             if "detail" not in stage and "annotation" in stage:
                 stage["detail"] = stage["annotation"]
+
+    elif vt == "matrix_2x2":
+        # LLM sometimes returns quadrants as a list instead of a dict
+        qs = viz.get("quadrants")
+        if isinstance(qs, list):
+            _Q_KEYS = ["top_left", "top_right", "bottom_left", "bottom_right"]
+            viz["quadrants"] = {_Q_KEYS[i]: q for i, q in enumerate(qs) if i < 4}
+        elif qs is None:
+            viz["quadrants"] = {}
+
+    elif vt == "swot":
+        # LLM sometimes returns quadrants as a list; map to canonical keys
+        qs = viz.get("quadrants")
+        if isinstance(qs, list):
+            _SW_KEYS = ["strengths", "weaknesses", "opportunities", "threats"]
+            viz["quadrants"] = {_SW_KEYS[i]: q for i, q in enumerate(qs) if i < 4}
 
     return viz
 

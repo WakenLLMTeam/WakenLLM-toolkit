@@ -124,23 +124,46 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
             return float(max_depth - raw_y), float(n_leaves - 1 - raw_x)
         return float(raw_x), float(max_depth - raw_y)
 
-    # Node box size (data units) — adaptive to figure and tree size
+    # Node box size — adaptive to figure and tree size
     all_nd = [root] + _all_nodes(root)
-    max_lbl_len = max((len(str(n.get("label", "x"))) for n in all_nd), default=4)
+    all_labels = [str(n.get("label", "x")) for n in all_nd]
+    max_lbl_len = max(len(l) for l in all_labels) if all_labels else 4
     x_span = max(n_leaves - 1, 1) + 2 * pad_x
     y_span = max(max_depth, 1) + 2 * pad_y
-    # physical size per data unit (approx)
-    px_per_xu = fw / x_span
-    py_per_yu = fh / y_span
-    nw = min(px_per_xu * 0.80, 1.6) / px_per_xu * (fw / fw)   # in data units
-    nw = min(0.80 / (x_span / max(n_leaves,1)), x_span * 0.12)
-    nh = min(0.45 / (y_span / max(max_depth+1,1)), y_span * 0.09)
-    nw = max(nw, 0.20)
-    nh = max(nh, 0.10)
+    # Physical size per data unit
+    px_per_xu = fw / x_span   # inches per x data unit
+    py_per_yu = fh / y_span   # inches per y data unit
 
-    # Adaptive font
-    fs_root = max(THEME.FS_SMALL, min(THEME.FS_H2, 11.0 - max_lbl_len * 0.15))
-    fs_node = max(THEME.FS_MICRO + 1, fs_root - 1.5)
+    # Node box occupies 80% of inter-leaf spacing (leaves are 1.0 data unit apart)
+    nw = 0.80  # data units
+    nh = min(0.55, py_per_yu * 0.60)
+    nh = max(nh, 0.18)
+
+    box_w_in = nw * px_per_xu   # physical width of node box in inches
+    box_h_in = nh * py_per_yu   # physical height of node box in inches
+
+    # Detect CJK labels (full-width chars ≈ 1× pt/72; ASCII ≈ 0.55× pt/72)
+    has_cjk = any('\u4e00' <= c <= '\u9fff' for lbl in all_labels for c in lbl)
+    cw_factor = 0.98 if has_cjk else 0.55
+
+    # Wrap long labels to prevent overflow — compute limit based on min readable font
+    wrap_lim = max(4, int(box_w_in * 72 / (THEME.FS_MICRO * cw_factor)))
+
+    def _wrap_label(label: str) -> str:
+        if len(label) <= wrap_lim:
+            return label
+        mid = len(label) // 2
+        return label[:mid] + "\n" + label[mid:]
+
+    # Max chars per line after wrapping → derive font size to fit box width
+    max_line_len = max(
+        (max(len(ln) for ln in _wrap_label(lbl).split("\n")) for lbl in all_labels),
+        default=4,
+    )
+    max_fs = (box_w_in * 0.85 * 72) / (max_line_len * cw_factor) if max_line_len > 0 else THEME.FS_H2
+
+    fs_root = max(THEME.FS_MICRO, min(THEME.FS_H2, max_fs))
+    fs_node = max(THEME.FS_MICRO, min(THEME.FS_BODY, max_fs * 0.90))
 
     def _draw_node(node: Dict, ax) -> None:
         nid = node["_id"]
@@ -148,7 +171,7 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
         dx, dy = get_data_pos(raw_x, raw_y)
 
         color = node.get("color", THEME.SURFACE)
-        label = node.get("label", "")
+        label = _wrap_label(node.get("label", ""))
         is_root = (nid == "0")
         border_color = THEME.ACCENT if is_root else THEME.BORDER
         lw = 2.0 if is_root else 1.2

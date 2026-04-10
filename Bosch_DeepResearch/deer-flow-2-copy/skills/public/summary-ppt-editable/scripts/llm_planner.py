@@ -287,10 +287,14 @@ _LANG_INSTRUCTIONS = {
 
 def _call_anthropic(system: str, prompt: str, model: str) -> str:
     import anthropic
-    api_key = (os.environ.get("ANTHROPIC_API_KEY")
-               or os.environ.get("ANTHROPIC_AUTH_TOKEN") or "")
-    base_url = os.environ.get("ANTHROPIC_BASE_URL")
-    kwargs: Dict[str, Any] = dict(api_key=api_key)
+    api_key   = os.environ.get("ANTHROPIC_API_KEY") or ""
+    auth_token = os.environ.get("ANTHROPIC_AUTH_TOKEN") or ""
+    base_url  = os.environ.get("ANTHROPIC_BASE_URL")
+    kwargs: Dict[str, Any] = {}
+    if api_key:
+        kwargs["api_key"] = api_key
+    elif auth_token:
+        kwargs["auth_token"] = auth_token
     if base_url:
         kwargs["base_url"] = base_url
     client = anthropic.Anthropic(**kwargs)

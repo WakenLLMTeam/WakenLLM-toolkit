@@ -503,6 +503,126 @@ def _normalize_viz_spec(viz: Dict[str, Any]) -> Dict[str, Any]:
     return viz
 
 
+# ── Post-process editorial agent ──────────────────────────────────────────────
+
+_POST_EDITOR_SYSTEM = textwrap.dedent("""
+You are a senior presentation editor. Review this deck and output ONLY a JSON array of text patches.
+
+Do NOT change slide count, ordering, or viz specs — only fix text content.
+
+Check for these issues:
+1. **Section titles** (type=section): title MUST be a short meaningful PHRASE (5–20 chars), never a single word.
+   Bad: "技术"  "竞争"  "总结"   Good: "核心技术路线解析"  "竞争格局与市场地位"  "战略总结与建议"
+2. **Content titles**: overly generic titles ("概述", "Introduction", "Overview", "Background") must be rewritten to reflect the actual content of that slide.
+3. **Duplicate bullets**: if two adjacent content slides share 3+ identical or near-identical bullet points, trim the later slide's repeated bullets.
+4. **Narrative arc**: ensure the deck flows logically — background/problem → analysis/data → insight → recommendation/conclusion. Add a note if arc is broken (do NOT reorder slides).
+5. **Speaker notes**: if a slide has no notes and contains complex data or a key argument, add 1-2 sentence speaker notes that explain the "so what".
+
+Output a JSON array of patch objects. Each patch must have exactly these fields:
+  { "slide_number": <int>, "field": "title" | "bullets" | "notes", "value": <string or string-array> }
+
+"title" value  → a plain string
+"bullets" value → an array of strings
+"notes" value  → a plain string
+
+If nothing needs fixing on a slide, omit it from the array.
+If the entire deck is already good, output: []
+
+IMPORTANT: Output ONLY valid JSON. No explanation, no prose, no markdown.
+""").strip()
+
+_POST_EDITOR_USER_TEMPLATE = textwrap.dedent("""
+Deck title: {deck_title}
+
+Slides:
+{slides_summary}
+
+Output the patches JSON array:
+""").strip()
+
+
+def _run_post_editor(
+    slide_list: List[Dict[str, Any]],
+    deck_title: str,
+    backend: str,
+    model: str,
+) -> List[Dict[str, Any]]:
+    """
+    Post-process editorial pass. Calls LLM with the full deck summary and applies
+    text-field patches (title / bullets / notes) to improve quality and consistency.
+    Never re-renders viz or changes slide order.
+    """
+    # Build compact per-slide summary for the LLM
+    lines = []
+    for s in slide_list:
+        sn = s.get("slide_number", "?")
+        stype = s.get("type", "content")
+        title = s.get("title", "")
+        bullets = s.get("bullets") or []
+        cards = s.get("cards") or []
+        notes = s.get("notes", "")
+        fig = s.get("figure") or {}
+        viz_type = (fig.get("viz") or {}).get("type", "none")
+
+        parts = [f"Slide {sn} [{stype}] title: \"{title}\" viz: {viz_type}"]
+        if bullets:
+            parts.append("  bullets: " + " | ".join(f'"{b}"' for b in bullets[:6]))
+        if cards:
+            parts.append("  cards: " + " | ".join(f'"{c.get("heading","")}"' for c in cards[:5]))
+        if notes:
+            parts.append(f"  notes: \"{notes[:80]}\"")
+        lines.append("\n".join(parts))
+
+    slides_summary = "\n\n".join(lines)
+    user = _POST_EDITOR_USER_TEMPLATE.format(
+        deck_title=deck_title,
+        slides_summary=slides_summary,
+    )
+
+    print("[slides_agent] Running post-editor pass…", file=sys.stderr)
+    try:
+        raw = llm_planner._call_llm(_POST_EDITOR_SYSTEM, user, backend, model)
+        patches = llm_planner._extract_json(raw)
+    except Exception as exc:
+        print(f"[slides_agent] post-editor LLM call failed: {exc}", file=sys.stderr)
+        return slide_list
+
+    if not isinstance(patches, list):
+        print(f"[slides_agent] post-editor unexpected response type: {type(patches)}", file=sys.stderr)
+        return slide_list
+
+    if not patches:
+        print("[slides_agent] post-editor: deck looks good — no patches needed", file=sys.stderr)
+        return slide_list
+
+    # Index slides by slide_number for O(1) lookup
+    sn_to_idx: Dict[int, int] = {s.get("slide_number", i + 1): i for i, s in enumerate(slide_list)}
+    slide_list = copy.deepcopy(slide_list)
+
+    applied = 0
+    for patch in patches:
+        if not isinstance(patch, dict):
+            continue
+        sn = patch.get("slide_number")
+        field = patch.get("field")
+        value = patch.get("value")
+        if sn is None or field not in ("title", "bullets", "notes") or value is None:
+            continue
+        idx = sn_to_idx.get(int(sn))
+        if idx is None:
+            print(f"[slides_agent] post-editor: unknown slide_number {sn}, skipping", file=sys.stderr)
+            continue
+        old = slide_list[idx].get(field)
+        slide_list[idx][field] = value
+        old_s = str(old)[:50] if old else "(none)"
+        new_s = str(value)[:50]
+        print(f"[slides_agent] post-edit slide {sn} [{field}]: {old_s!r} → {new_s!r}", file=sys.stderr)
+        applied += 1
+
+    print(f"[slides_agent] post-editor: applied {applied} patch(es)", file=sys.stderr)
+    return slide_list
+
+
 _RETRY_SYSTEM = textwrap.dedent("""
 You are a data visualization spec validator. A previous attempt to generate a viz spec had the following error:
 
@@ -687,6 +807,7 @@ def build_slides_pptx(
     two_stage: bool = True,
     outline: Optional[List[Dict[str, Any]]] = None,
     max_per_type: int = 2,
+    post_edit: bool = True,
 ) -> str:
     """
     Full pipeline: topic → per-slide outline → per-slide viz decision → render → PPTX.
@@ -785,6 +906,10 @@ def build_slides_pptx(
         else:
             fig["image_path"] = ""
 
+    # ── Post-process editorial pass ──────────────────────────────────────────
+    if post_edit:
+        slide_list = _run_post_editor(slide_list, topic, backend, model)
+
     # ── Final assembly ───────────────────────────────────────────────────────
     plan: Dict[str, Any] = {
         "title": topic,
@@ -856,7 +981,9 @@ def main() -> int:
                         help="Skip Stage 1 key-point extraction (faster, lower quality)")
     parser.add_argument("--decisions-only", action="store_true",
                         help="Output per-slide decisions JSON only, do not render or assemble")
-    parser.set_defaults(two_stage=True)
+    parser.add_argument("--no-post-edit", dest="post_edit", action="store_false",
+                        help="Skip the post-process editorial pass (faster, less polished)")
+    parser.set_defaults(two_stage=True, post_edit=True)
     args = parser.parse_args()
 
     # Resolve outline
@@ -917,6 +1044,7 @@ def main() -> int:
         assets_dir=args.assets_dir,
         two_stage=args.two_stage,
         outline=outline,
+        post_edit=args.post_edit,
     )
     print(f"PPTX ready: {out_path}")
     return 0

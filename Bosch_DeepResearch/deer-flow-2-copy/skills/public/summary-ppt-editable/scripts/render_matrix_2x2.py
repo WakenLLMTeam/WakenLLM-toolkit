@@ -99,19 +99,64 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
             fontsize=THEME.FS_H1, color=THEME.INK, fontweight="bold",
             rotation=90, transform=ax.transAxes)
 
-    # Plot items
-    for it in items:
-        ix = float(it.get("x", 0.5)) * 0.96 + 0.02  # map [0,1] → [0.02, 0.98]
-        iy = float(it.get("y", 0.5)) * 0.96 + 0.02
+    # Spread clustered items so they don't overlap
+    import math
+
+    def _spread(raw_items, min_dist: float = 0.10, iterations: int = 80):
+        """Repulsion pass: push items apart until no two are closer than min_dist."""
+        pts = [[float(it.get("x", 0.5)), float(it.get("y", 0.5))] for it in raw_items]
+        for _ in range(iterations):
+            moved = False
+            for i in range(len(pts)):
+                for j in range(i + 1, len(pts)):
+                    dx = pts[j][0] - pts[i][0]
+                    dy = pts[j][1] - pts[i][1]
+                    dist = math.hypot(dx, dy)
+                    if dist < min_dist:
+                        push = (min_dist - dist) / max(dist, 1e-6) * 0.5
+                        if dist < 1e-6:           # exact overlap → push radially
+                            angle = math.pi * 2 * i / max(len(pts), 1)
+                            dx, dy = math.cos(angle), math.sin(angle)
+                            push = min_dist * 0.5
+                        pts[i][0] = max(0.06, min(0.94, pts[i][0] - dx * push))
+                        pts[i][1] = max(0.06, min(0.94, pts[i][1] - dy * push))
+                        pts[j][0] = max(0.06, min(0.94, pts[j][0] + dx * push))
+                        pts[j][1] = max(0.06, min(0.94, pts[j][1] + dy * push))
+                        moved = True
+            if not moved:
+                break
+        return pts
+
+    spread_pts = _spread(items)
+
+    # Map [0,1] → axes fraction [0.04, 0.96]
+    def _to_ax(v):
+        return float(v) * 0.92 + 0.04
+
+    for idx, it in enumerate(items):
+        ix = _to_ax(spread_pts[idx][0])
+        iy = _to_ax(spread_pts[idx][1])
         color = it.get("color", THEME.ACCENT)
         label = it.get("label", "")
-        ax.scatter([ix], [iy], s=220, color=color, zorder=5,
-                   edgecolors="white", linewidths=1.2,
+        ax.scatter([ix], [iy], s=240, color=color, zorder=5,
+                   edgecolors="white", linewidths=1.4,
                    transform=ax.transAxes)
-        ax.annotate(label, xy=(ix, iy), xytext=(6, 4),
-                    textcoords="offset points",
-                    fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
-                    transform=ax.transAxes, zorder=6)
+        # Label offset: push away from centre (0.5, 0.5) so labels fan outward
+        cx, cy = 0.5, 0.5
+        angle = math.atan2(iy - cy, ix - cx)
+        off_x = math.cos(angle) * 18
+        off_y = math.sin(angle) * 14
+        ha = "left" if off_x >= 0 else "right"
+        ax.annotate(
+            label,
+            xy=(ix, iy), xytext=(off_x, off_y),
+            textcoords="offset points",
+            fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
+            ha=ha, va="center",
+            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75),
+            arrowprops=dict(arrowstyle="-", color=THEME.BORDER, lw=0.8),
+            transform=ax.transAxes, zorder=6,
+        )
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

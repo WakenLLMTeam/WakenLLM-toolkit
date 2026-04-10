@@ -533,6 +533,32 @@ def _normalize_viz_spec(viz: Dict[str, Any]) -> Dict[str, Any]:
         elif qs is None:
             viz["quadrants"] = {}
 
+        # When all items are clustered near (0.5, 0.5), redistribute them to
+        # quadrant centres so the chart is actually readable.
+        import math as _math
+        items = viz.get("items") or []
+        _QUADRANT_CENTRES = [
+            (0.25, 0.75),  # top-left
+            (0.75, 0.75),  # top-right
+            (0.25, 0.25),  # bottom-left
+            (0.75, 0.25),  # bottom-right
+        ]
+        if items:
+            xs = [float(it.get("x", 0.5)) for it in items]
+            ys = [float(it.get("y", 0.5)) for it in items]
+            spread = _math.sqrt(
+                sum((x - 0.5) ** 2 + (y - 0.5) ** 2 for x, y in zip(xs, ys)) / len(items)
+            )
+            # If all items within 0.15 radius of centre → fan them to quadrant centres
+            if spread < 0.15:
+                for i, it in enumerate(items):
+                    cx, cy = _QUADRANT_CENTRES[i % 4]
+                    # Add small jitter so multiple items in same quadrant don't stack
+                    jitter_x = 0.06 * ((i // 4) % 3 - 1)
+                    jitter_y = 0.06 * ((i // 4 + 1) % 3 - 1)
+                    it["x"] = min(0.92, max(0.08, cx + jitter_x))
+                    it["y"] = min(0.92, max(0.08, cy + jitter_y))
+
     elif vt == "swot":
         # LLM sometimes returns quadrants as a list; map to canonical keys
         qs = viz.get("quadrants")

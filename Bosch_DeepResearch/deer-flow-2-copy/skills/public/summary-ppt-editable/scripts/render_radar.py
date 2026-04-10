@@ -47,7 +47,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
@@ -97,11 +97,12 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
         ax.plot([angle, angle], [0, 1.0], color=THEME.BORDER, lw=0.8, zorder=1)
 
     # ── Player polygons ───────────────────────────────────────────────────────
-    for player in players:
+    morandi_colors = get_categorical_palette(len(players))
+    for pi, player in enumerate(players):
         scores = player.get("scores", [])
         if len(scores) != n:
             continue  # skip mismatched entries
-        color = player.get("color", THEME.ACCENT)
+        color = player.get("color", morandi_colors[pi % len(morandi_colors)])
         highlight = bool(player.get("highlight", False))
 
         # Normalise scores to [0, 1]
@@ -151,8 +152,8 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
 
     # ── Legend ────────────────────────────────────────────────────────────────
     legend_handles = []
-    for player in players:
-        color = player.get("color", THEME.ACCENT)
+    for pi, player in enumerate(players):
+        color = player.get("color", morandi_colors[pi % len(morandi_colors)])
         highlight = bool(player.get("highlight", False))
         lw = 2.4 if highlight else 1.5
         patch = mpatches.Patch(facecolor=color, edgecolor=color,

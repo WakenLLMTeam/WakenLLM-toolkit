@@ -111,13 +111,12 @@ AVAILABLE VIZ TYPES:
 10. waterfall  — Incremental bridge chart: cost/value bridges, variance analysis
 11. funnel     — Top-to-bottom conversion funnel: funnel/conversion metrics
 12. radar      — Multi-axis radar/spider chart: competitor benchmarking across dimensions
-13. mindmap    — Radial mind map: concept breakdown, topic branches. Schema: {"center": "Topic", "branches": [{"label": "Branch", "color": "#dbeafe", "children": [{"label": "Child1"}, {"label": "Child2"}]}]}
-14. tree       — Hierarchical tree: org charts, product taxonomies, decision trees. Schema: {"root": {"label": "Root", "color": "#dbeafe", "children": [{"label": "Child", "children": []}]}}
-15. matrix_2x2 — 2x2 quadrant: prioritization, technology positioning
-16. venn       — 2- or 3-circle Venn: capability overlap, set intersection
-17. onion      — Concentric rings: layered systems, maturity stages
-18. gantt      — Horizontal Gantt: project timelines, roadmap with milestones
-19. swot       — 4-quadrant SWOT: competitive analysis, strategic positioning
+13. tree       — Hierarchical tree: org charts, product taxonomies, decision trees. Schema: {"root": {"label": "Root", "color": "#dbeafe", "children": [{"label": "Child", "children": []}]}}
+14. matrix_2x2 — 2x2 quadrant: prioritization, technology positioning
+15. venn       — 2- or 3-circle Venn: capability overlap, set intersection
+16. onion      — Concentric rings: layered systems, maturity stages
+17. gantt      — Horizontal Gantt: project timelines, roadmap with milestones
+18. swot       — 4-quadrant SWOT: competitive analysis, strategic positioning
 
 DECISION RULES:
 - timeline: chronological evolution, phases, roadmaps, milestones
@@ -130,7 +129,7 @@ DECISION RULES:
 - waterfall: incremental bridge (cost, revenue, variance)
 - funnel: conversion/adoption funnel
 - swot: competitive/strategic 4-quadrant analysis
-- mindmap / tree: hierarchical/taxonomic breakdown
+- tree: hierarchical/taxonomic breakdown
 - gantt: project timeline with start/end/milestones
 - matrix_2x2: 2-axis prioritization or positioning
 - venn: set intersection / overlap analysis
@@ -539,7 +538,7 @@ def _build_diversity_hint(used_viz_types: Dict[str, int], max_per_type: int) -> 
     ALL_TYPES = [
         "timeline", "flowchart", "comparison", "pipeline", "arch",
         "bar_chart", "line_chart", "scatter", "heatmap", "waterfall",
-        "funnel", "radar", "mindmap", "tree", "matrix_2x2",
+        "funnel", "radar", "tree", "matrix_2x2",
         "venn", "onion", "gantt", "swot",
     ]
     unused = [t for t in ALL_TYPES if t not in used_viz_types]

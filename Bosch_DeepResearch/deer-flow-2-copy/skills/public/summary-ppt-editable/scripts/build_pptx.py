@@ -517,8 +517,110 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             top_body = Inches(1.35)
             full_text_w = slide_w - Inches(1.1)
 
+            # ── New layout dispatch ───────────────────────────────────────────
+            layout = (slide.get("layout") or "default").lower()
+
+            # Adaptive bullet font: scale up when few bullets to fill the space
+            def _bullet_pt(box_h_in: float) -> int:
+                bullets = [b for b in (slide.get("bullets") or []) if (b or "").strip()]
+                n = max(len(bullets), 1)
+                # target ~80% of box height; each line ≈ pt*1.4/72 in + 8pt space
+                natural = (box_h_in * 0.80 * 72) / (n * (1.4 + 8 / 72))
+                return int(max(13, min(22, natural)))
+
+            def _caption_box(sld, actual, fig, font_body, body_rgb):
+                cap = fig.get("caption")
+                if not cap or not actual:
+                    return
+                _al, _at, _aw, _ah = actual
+                cb = sld.shapes.add_textbox(_al, _at + _ah + Inches(0.05), _aw, Inches(0.38))
+                ctf = cb.text_frame
+                cp = ctf.paragraphs[0]
+                cp.text = _truncate(str(cap), 60)
+                cp.font.size = Pt(9)
+                cp.font.color.rgb = body_rgb
+                cp.alignment = PP_ALIGN.CENTER
+                try:
+                    cp.font.name = font_body
+                except Exception:
+                    pass
+
+            # ── two_col: dual-column text, no viz ─────────────────────────────
+            if layout == "two_col":
+                all_bullets = [b for b in (slide.get("bullets") or []) if (b or "").strip()]
+                mid = (len(all_bullets) + 1) // 2
+                col_w = (full_text_w - Inches(0.45)) / 2
+                body_h = slide_h - top_body - Inches(0.3)
+                bpt = _bullet_pt(float(body_h) / 914400)
+                if all_bullets[:mid]:
+                    box1 = sld.shapes.add_textbox(left_margin, top_body, col_w, body_h)
+                    bf1 = box1.text_frame
+                    bf1.word_wrap = True
+                    bf1.vertical_anchor = MSO_ANCHOR.TOP
+                    _add_bullets(bf1, all_bullets[:mid], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
+                # accent divider
+                div_x = left_margin + col_w + Inches(0.20)
+                div = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, div_x,
+                                           top_body + Inches(0.1), Inches(0.018), body_h - Inches(0.2))
+                div.fill.solid()
+                div.fill.fore_color.rgb = accent
+                div.line.fill.background()
+                if all_bullets[mid:]:
+                    box2 = sld.shapes.add_textbox(div_x + Inches(0.25), top_body, col_w, body_h)
+                    bf2 = box2.text_frame
+                    bf2.word_wrap = True
+                    bf2.vertical_anchor = MSO_ANCHOR.TOP
+                    _add_bullets(bf2, all_bullets[mid:], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
+
+            # ── hero: viz dominant right (~65%), compact text left (~35%) ─────
+            elif layout == "hero" and has_figure and img_path and os.path.isfile(img_path):
+                txt_w = Inches(4.2)
+                viz_x = left_margin + txt_w + Inches(0.25)
+                viz_w = slide_w - viz_x - Inches(0.25)
+                viz_top = Inches(1.15)
+                viz_h = slide_h - viz_top - Inches(0.28)
+                body_h = slide_h - top_body - Inches(0.3)
+                body_box = sld.shapes.add_textbox(left_margin, top_body, txt_w, body_h)
+                bf = body_box.text_frame
+                bf.word_wrap = True
+                bf.vertical_anchor = MSO_ANCHOR.TOP
+                bpt = _bullet_pt(float(body_h) / 914400)
+                _add_bullets(bf, slide.get("bullets") or [], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
+                _actual = _add_picture_fit(sld, img_path, viz_x, viz_top, viz_w, viz_h)
+                _caption_box(sld, _actual, fig, font_body, body_rgb)
+
+            # ── split: balanced 50/50 ─────────────────────────────────────────
+            elif layout == "split" and has_figure and img_path and os.path.isfile(img_path):
+                txt_w = slide_w * 0.47 - left_margin
+                viz_x = left_margin + txt_w + Inches(0.25)
+                viz_w = slide_w - viz_x - Inches(0.25)
+                body_h = slide_h - top_body - Inches(0.3)
+                body_box = sld.shapes.add_textbox(left_margin, top_body, txt_w, body_h)
+                bf = body_box.text_frame
+                bf.word_wrap = True
+                bf.vertical_anchor = MSO_ANCHOR.TOP
+                bpt = _bullet_pt(float(body_h) / 914400)
+                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                _actual = _add_picture_fit(sld, img_path, viz_x, Inches(1.15), viz_w, slide_h - Inches(1.45))
+                _caption_box(sld, _actual, fig, font_body, body_rgb)
+
+            # ── viz_left: viz on left (~45%), text on right ───────────────────
+            elif layout == "viz_left" and has_figure and img_path and os.path.isfile(img_path):
+                viz_w = Inches(5.8)
+                txt_x = left_margin + viz_w + Inches(0.25)
+                txt_w = slide_w - txt_x - Inches(0.25)
+                body_h = slide_h - top_body - Inches(0.3)
+                _actual = _add_picture_fit(sld, img_path, left_margin, Inches(1.15), viz_w, slide_h - Inches(1.45))
+                _caption_box(sld, _actual, fig, font_body, body_rgb)
+                body_box = sld.shapes.add_textbox(txt_x, top_body, txt_w, body_h)
+                bf = body_box.text_frame
+                bf.word_wrap = True
+                bf.vertical_anchor = MSO_ANCHOR.TOP
+                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+
+            # ── default / fallback: existing position-based dispatch ──────────
             # ----- Full-slide: figure spans the entire content area (comparison/flowchart) -----
-            if has_figure and pos == "full":
+            elif has_figure and pos == "full":
                 # Optional compact summary text above the figure (1 line / short bullets)
                 summary_lines = []
                 if slide.get("bullets"):

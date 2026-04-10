@@ -136,12 +136,33 @@ DECISION RULES:
 - onion: layered decomposition
 - radar: 3+ players compared across multiple dimensions
 
+LAYOUT OPTIONS — also decide the page layout based on information density:
+
+  "hero"     — Viz IS the message. Large viz right (65%), compact text left (35%).
+               Use when: chart is complex (arch/flowchart/tree/heatmap) and tells the story.
+               Bullets: keep to 3-4 short lines max.
+
+  "split"    — Equal emphasis. Viz right 50%, text left 50%.
+               Use when: data and explanation are equally important. Bullets: 4-6 lines.
+
+  "viz_left" — Flipped layout. Viz LEFT (45%), text RIGHT (55%).
+               Use when: variety is needed — avoid using same layout as previous slide.
+               Same criteria as default but mirrored.
+
+  "two_col"  — Dual-column text, no viz.
+               Use when: 6+ bullets and no clear viz candidate, or content is list-heavy.
+               needs_viz must be false for this layout.
+
+  "default"  — Standard: text left (55%), viz right (45%).
+               Use when: viz supports but doesn't dominate. Bullets: 3-6 lines.
+
 Return a single JSON object:
 
 If a viz is needed:
 {
   "slide_number": <N>,
   "needs_viz": true,
+  "layout": "hero" | "split" | "viz_left" | "default",
   "figure": {
     "position": "right" | "bottom",
     "caption": "string (≤50 chars, optional)",
@@ -152,7 +173,8 @@ If a viz is needed:
 If no viz is needed:
 {
   "slide_number": <N>,
-  "needs_viz": false
+  "needs_viz": false,
+  "layout": "two_col" | "default"
 }
 
 VIZ SPEC CONSTRAINTS:
@@ -172,9 +194,10 @@ Slide to decide on:
   Slide number: {slide_number}
   Type: {slide_type}
   Title: {title}
-  Content: {content}
+  Content ({bullet_count} bullets): {content}
   Deck title: {deck_title}
   Theme: {theme_instruction}
+  Previous slide layout: {prev_layout}
 
 Viz diversity tracker (already used in this deck):
 {diversity_hint}
@@ -182,6 +205,9 @@ Viz diversity tracker (already used in this deck):
 DIVERSITY RULE: Strongly prefer viz types NOT in the "already used" list above.
 Types marked [EXHAUSTED] must NOT be used — pick a different type.
 Aim to introduce a new viz type on every slide.
+
+LAYOUT RULE: Vary layouts across slides — avoid using the same layout as the previous slide.
+Choose layout based on bullet count and how central the viz is to the slide's message.
 
 Output a single JSON decision object now."""
 
@@ -720,6 +746,7 @@ def _decide_slide_viz(
     theme: str,
     used_viz_types: Optional[Dict[str, int]] = None,
     max_per_type: int = 2,
+    prev_layout: str = "default",
 ) -> Dict[str, Any]:
     """Ask LLM whether this slide needs a viz and which type. Retries once on invalid spec."""
     theme_instruction = "Bosch Red accent (#E20015)" if theme == "bosch" else "blue accent (#2563eb)"
@@ -734,10 +761,12 @@ def _decide_slide_viz(
         slide_number=sn,
         slide_type=slide.get("type", "content"),
         title=slide.get("title", ""),
+        bullet_count=len(content),
         content=content_str,
         deck_title=deck_title,
         theme_instruction=theme_instruction,
         diversity_hint=diversity_hint,
+        prev_layout=prev_layout,
     )
 
     raw = llm_planner._call_llm(_SLIDE_VIZ_DECISION_SYSTEM, user, backend, model)
@@ -867,6 +896,7 @@ def build_slides_pptx(
 
     # ── Stage 2: per-slide viz decision loop ───────────────────────────────
     viz_types_used: Dict[str, int] = {}
+    prev_layout: str = "default"
 
     for i, slide in enumerate(slide_list):
         sn = slide.get("slide_number", i + 1)
@@ -890,10 +920,16 @@ def build_slides_pptx(
                     theme=theme,
                     used_viz_types=dict(viz_types_used),
                     max_per_type=max_per_type,
+                    prev_layout=prev_layout,
                 )
             except Exception as exc:
                 print(f"[slides_agent]   WARNING slide {sn} viz decision failed: {exc}", file=sys.stderr)
                 decision = {"slide_number": sn, "needs_viz": False}
+
+            # Propagate layout decision to slide
+            decided_layout = decision.get("layout", "default")
+            slide["layout"] = decided_layout
+            prev_layout = decided_layout
 
             # Merge decision into slide
             if decision.get("needs_viz"):

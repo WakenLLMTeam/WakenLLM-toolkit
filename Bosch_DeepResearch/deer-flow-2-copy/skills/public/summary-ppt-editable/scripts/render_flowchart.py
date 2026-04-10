@@ -277,9 +277,14 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_ylim(0, 1)
 
     # ── Edges (draw BEFORE nodes so arrows go under node shapes) ─────────────
+    # Pre-compute bidirectional pairs: if A→B and B→A both exist, offset them
+    edge_pairs = set((e.get("from", ""), e.get("to", "")) for e in edges)
+
     for e in edges:
-        sx, sy = pos.get(e.get("from", ""), (0, 0))
-        dx, dy = pos.get(e.get("to", ""), (0, 0))
+        src_id = e.get("from", "")
+        dst_id = e.get("to", "")
+        sx, sy = pos.get(src_id, (0, 0))
+        dx, dy = pos.get(dst_id, (0, 0))
         if (sx, sy) == (0, 0) or (dx, dy) == (0, 0):
             continue
         angle = math.atan2(dy - sy, dx - sx)
@@ -289,6 +294,13 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
         sy2 = sy + math.sin(angle) * (bh / 2 + pad)
         dx2 = dx - math.cos(angle) * (bw / 2 + pad)
         dy2 = dy - math.sin(angle) * (bh / 2 + pad)
+
+        # Offset bidirectional pairs so the two arrows run side-by-side
+        if (dst_id, src_id) in edge_pairs:
+            perp_x = -math.sin(angle) * 0.016
+            perp_y =  math.cos(angle) * 0.016
+            sx2 += perp_x; sy2 += perp_y
+            dx2 += perp_x; dy2 += perp_y
 
         ax.annotate("",
                     xy=(dx2, dy2), xytext=(sx2, sy2),

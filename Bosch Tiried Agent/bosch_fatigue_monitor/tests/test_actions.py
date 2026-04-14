@@ -210,3 +210,51 @@ class TestContextActionAgent:
         alert_context.map.nearest_rest_km = None
         result = await ContextActionAgent().execute(severe_verdict, alert_context)
         assert result.status == ActionStatus.SUCCESS
+
+    # --- Driver memory paths ---
+
+    @pytest.mark.asyncio
+    async def test_coffee_lover_auto_orders(self, severe_verdict, alert_context_coffee_lover):
+        """Driver with likes_coffee=True + nearby Starbucks → auto_ordered=True."""
+        result = await ContextActionAgent().execute(severe_verdict, alert_context_coffee_lover)
+        assert result.status == ActionStatus.SUCCESS
+        assert result.payload["action"] == "order_coffee"
+        assert result.payload["auto_ordered"] is True
+
+    @pytest.mark.asyncio
+    async def test_coffee_lover_message_mentions_order(self, severe_verdict, alert_context_coffee_lover):
+        """Auto-order message should mention the coffee order type."""
+        result = await ContextActionAgent().execute(severe_verdict, alert_context_coffee_lover)
+        assert "美式" in result.message or "自动下单" in result.message
+
+    @pytest.mark.asyncio
+    async def test_coffee_lover_message_mentions_shop(self, severe_verdict, alert_context_coffee_lover):
+        result = await ContextActionAgent().execute(severe_verdict, alert_context_coffee_lover)
+        assert "星巴克" in result.message
+
+    @pytest.mark.asyncio
+    async def test_low_traffic_suggests_pull_over(self, severe_verdict, alert_context_low_traffic):
+        """Low traffic density → pull_over_rest action."""
+        result = await ContextActionAgent().execute(severe_verdict, alert_context_low_traffic)
+        assert result.status == ActionStatus.SUCCESS
+        assert result.payload["action"] == "pull_over_rest"
+
+    @pytest.mark.asyncio
+    async def test_low_traffic_message_mentions_density(self, severe_verdict, alert_context_low_traffic):
+        result = await ContextActionAgent().execute(severe_verdict, alert_context_low_traffic)
+        assert "车流" in result.message or "停车" in result.message
+
+    @pytest.mark.asyncio
+    async def test_coffee_too_far_falls_back_to_generic(self, severe_verdict, alert_context_commuter):
+        """Coffee shop is > coffee_max_km away → no auto-order, fall through to generic."""
+        from models.driver_memory import DriverMemory
+        alert_context_commuter.driver_memory = DriverMemory(
+            likes_coffee=True,
+            coffee_max_km=0.5,   # only 0.5 km tolerance
+        )
+        alert_context_commuter.map.nearest_coffee_km = 1.2  # beyond tolerance
+        alert_context_commuter.map.traffic_density = 0.6    # high traffic → no pull-over
+        result = await ContextActionAgent().execute(severe_verdict, alert_context_commuter)
+        assert result.status == ActionStatus.SUCCESS
+        # Must fall to path-3 (suggest coffee, not auto-order)
+        assert result.payload.get("auto_ordered") is not True

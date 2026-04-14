@@ -12,6 +12,7 @@ from models.fatigue_context import (
     FatigueContext, EnrichedFatigueContext,
     TextSignals, ImageSignals, AudioSignals, MapContext, RoadType, DriverProfile,
 )
+from models.driver_memory import DriverMemory, COFFEE_LOVER
 from models.judge_verdict import JudgeVerdict, SeverityTier, ModalityScore
 
 
@@ -99,6 +100,44 @@ def alert_context_city(alert_context):
     alert_context.map.road_type = RoadType.CITY
     alert_context.driver_profile = DriverProfile.COMMUTER
     return alert_context
+
+
+@pytest.fixture
+def alert_context_coffee_lover():
+    """Commuter who likes coffee; Starbucks is 1.2 km away (within 2 km limit)."""
+    return EnrichedFatigueContext(
+        fatigue=_make_alert_fatigue(duration_min=25.0),
+        map=MapContext(
+            road_type=RoadType.CITY,
+            nearest_rest_km=5.0,
+            nearest_coffee_km=1.2,
+            rest_spot_name="停车场",
+            coffee_shop_name="星巴克",
+            traffic_density=0.5,
+        ),
+        driver_profile=DriverProfile.COMMUTER,
+        time_risk_multiplier=1.0,
+        driver_memory=COFFEE_LOVER,
+    )
+
+
+@pytest.fixture
+def alert_context_low_traffic():
+    """Commuter on a quiet city road — pull-over is safe."""
+    return EnrichedFatigueContext(
+        fatigue=_make_alert_fatigue(duration_min=25.0),
+        map=MapContext(
+            road_type=RoadType.CITY,
+            nearest_rest_km=5.0,
+            nearest_coffee_km=3.0,   # too far to auto-order
+            rest_spot_name="停车场",
+            coffee_shop_name="星巴克",
+            traffic_density=0.15,    # low traffic → pull-over path
+        ),
+        driver_profile=DriverProfile.COMMUTER,
+        time_risk_multiplier=1.0,
+        driver_memory=DriverMemory(likes_coffee=False, ok_to_pull_over_city=True),
+    )
 
 
 @pytest.fixture

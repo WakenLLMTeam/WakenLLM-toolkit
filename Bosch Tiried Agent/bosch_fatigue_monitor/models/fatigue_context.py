@@ -1,6 +1,10 @@
+from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from models.driver_memory import DriverMemory
 
 
 class RoadType(str, Enum):
@@ -53,6 +57,8 @@ class MapContext:
     nearest_coffee_km: Optional[float]      = None
     rest_spot_name:    Optional[str]        = None
     coffee_shop_name:  Optional[str]        = None
+    # 0.0 = empty road; 1.0 = heavy traffic.  Used by city pull-over logic.
+    traffic_density:   float                = 0.5
 
 
 @dataclass
@@ -61,3 +67,4 @@ class EnrichedFatigueContext:
     map:                  MapContext
     time_risk_multiplier: float         = 1.0           # 1.0 normal; 1.3 post-lunch; 1.6 deep night (2-5 AM)
     driver_profile:       DriverProfile = DriverProfile.UNKNOWN
+    driver_memory:        Optional["DriverMemory"] = None  # None = no personalisation

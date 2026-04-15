@@ -77,9 +77,9 @@ def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
     morandi_colors = get_categorical_palette(len(series))
 
     for si, ser in enumerate(series):
-        color = ser.get("color", morandi_colors[si % len(morandi_colors)])
+        color = morandi_colors[si % len(morandi_colors)]  # always Morandi, ignore spec color
         vals = np.array(ser.get("values", []), dtype=float)
-        name = ser.get("name", "")
+        name = ser.get("name") or f"Series {si + 1}"
         marker = ser.get("marker", "o")
         ls = ser.get("linestyle", "-")
 

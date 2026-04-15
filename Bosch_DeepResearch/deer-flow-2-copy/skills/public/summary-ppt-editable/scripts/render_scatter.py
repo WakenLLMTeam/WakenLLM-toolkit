@@ -224,17 +224,7 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
         yl, yu = ax.get_ylim() if ax.get_ylim()[0] != ax.get_ylim()[1] else (min(all_y)-1, max(all_y)+1)
         ax.set_xlim(xl, xr)
         ax.set_ylim(yl, yu)
-        qlabels = (quadrant_labels + [""] * 4)[:4]
-        positions = [
-            (xl + (mx - xl) * 0.1, yu - (yu - my) * 0.1),
-            (mx + (xr - mx) * 0.1, yu - (yu - my) * 0.1),
-            (xl + (mx - xl) * 0.1, yl + (my - yl) * 0.1),
-            (mx + (xr - mx) * 0.1, yl + (my - yl) * 0.1),
-        ]
-        for ql, (qx, qy) in zip(qlabels, positions):
-            if ql:
-                ax.text(qx, qy, ql, fontsize=THEME.FS_SMALL,
-                        color=THEME.MUTED, style="italic", alpha=0.7)
+        # Quadrant labels omitted — they clutter the plot area
 
     # Axis labels omitted — quadrant labels and title convey the meaning
 

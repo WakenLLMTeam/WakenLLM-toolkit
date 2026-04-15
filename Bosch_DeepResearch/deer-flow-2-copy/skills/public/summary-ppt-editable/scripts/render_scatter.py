@@ -99,6 +99,7 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
 
     import math as _math
     point_counters = [0] * n_series
+    annotations = []  # collect (x, y, label, color) for deferred label drawing
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
             color = _scatter_color(si, point_counters[si])
@@ -107,10 +108,28 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
             x, y  = pt.get("x", 0), pt.get("y", 0)
             all_x.append(x)
             all_y.append(y)
-            ax.scatter([x], [y], s=size, color=color, alpha=0.82,
-                       edgecolors="white", linewidths=1.2, zorder=4)
+            ax.scatter([x], [y], s=size, color=color, alpha=0.85,
+                       edgecolors="white", linewidths=1.2, zorder=5)
             lbl = pt.get("label", "")
-            # Labels shown in legend below — no dot-side annotations
+            if lbl:
+                annotations.append((x, y, lbl, color))
+
+    # Draw labels after all points so zorder is above grid but below nothing critical.
+    # Semi-transparent background (alpha=0.55) so labels never fully obscure nearby points.
+    bg = spec.get("fig_bg", THEME.BG)
+    for (x, y, lbl, color) in annotations:
+        ax.annotate(
+            lbl, xy=(x, y),
+            xytext=(6, 6), textcoords="offset points",
+            fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
+            zorder=6,
+            bbox=dict(
+                boxstyle="round,pad=0.25",
+                facecolor=bg,
+                alpha=0.55,        # semi-transparent — data points show through
+                edgecolor="none",
+            ),
+        )
 
     # Quadrant lines at midpoints
     if all_x and all_y and quadrant_labels:

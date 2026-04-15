@@ -32,8 +32,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math as _math
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
@@ -58,6 +59,106 @@ _SCATTER_PALETTE = [
     "#f43f5e",  # rose
 ]
 
+# 16 candidate label offsets (dx, dy) in points — 8 cardinal + 8 diagonal
+_LABEL_CANDIDATES: List[Tuple[float, float]] = [
+    (8,  8), (8,  -8), (-8, 8), (-8, -8),   # diagonals (close)
+    (14, 0), (-14, 0), (0,  14), (0, -14),   # cardinals
+    (12, 5), (12, -5), (-12, 5), (-12, -5),  # diagonals (far-h)
+    (5, 12), (-5, 12), (5, -12), (-5, -12),  # diagonals (far-v)
+]
+
+
+# ── Label placement helpers ────────────────────────────────────────────────────
+
+def _est_label_bbox(x_d: float, y_d: float,
+                    dx_pt: float, dy_pt: float,
+                    text: str, font_pt: float, dpi: float
+                    ) -> Tuple[float, float, float, float]:
+    """
+    Estimate a label's bounding box in display-pixel coordinates.
+    Uses font-metric approximations — no renderer needed.
+
+    x_d, y_d : annotation anchor in display pixels (= data-point position)
+    dx_pt, dy_pt : offset from anchor in typographic points
+    Returns (x0, y0, x1, y1) in display pixels.
+    """
+    lines = text.split("\n")
+    n_chars = max(len(l) for l in lines) if lines else 1
+    n_lines = len(lines)
+
+    # Approximate character size in pixels
+    char_w_px = font_pt * 0.60 * dpi / 72.0
+    char_h_px = font_pt * 1.30 * dpi / 72.0
+    w_px = n_chars * char_w_px + 4
+    h_px = n_lines * char_h_px + 2
+
+    # Convert point offset to pixels
+    dx_px = dx_pt * dpi / 72.0
+    dy_px = dy_pt * dpi / 72.0
+
+    # Anchor point of label text (where the annotation arrow tip is)
+    ax_x = x_d + dx_px
+    ax_y = y_d + dy_px
+
+    # Horizontal alignment: left of anchor when dx≥0, right when dx<0
+    if dx_pt >= 0:
+        x0, x1 = ax_x, ax_x + w_px
+    else:
+        x0, x1 = ax_x - w_px, ax_x
+
+    # Vertical: centred on anchor
+    y0 = ax_y - h_px / 2
+    y1 = ax_y + h_px / 2
+
+    return (x0, y0, x1, y1)
+
+
+def _overlap_area(b1: Tuple, b2: Tuple) -> float:
+    """Overlap area of two (x0, y0, x1, y1) bounding boxes."""
+    ox = max(0.0, min(b1[2], b2[2]) - max(b1[0], b2[0]))
+    oy = max(0.0, min(b1[3], b2[3]) - max(b1[1], b2[1]))
+    return ox * oy
+
+
+def _best_label_offset(
+    x_d: float, y_d: float,
+    text: str, font_pt: float, dpi: float,
+    point_bboxes: List[Tuple],     # all scatter marker bboxes (display px)
+    placed_bboxes: List[Tuple],    # already-placed label bboxes
+    axes_bbox: Tuple,              # (x0,y0,x1,y1) axes area in display px
+) -> Tuple[Tuple[float, float], Tuple]:
+    """
+    Greedy label placement: score each candidate offset and return the best.
+
+    Scoring (lower = better):
+      • overlap with data-point markers   ×1
+      • overlap with already-placed labels ×3  (label-label clash is worse)
+      • out-of-axes-bounds penalty        ×0.5
+    """
+    best_off = _LABEL_CANDIDATES[0]
+    best_score = float("inf")
+    best_bbox: Tuple = _est_label_bbox(x_d, y_d, *_LABEL_CANDIDATES[0], text, font_pt, dpi)
+
+    ax0, ay0, ax1, ay1 = axes_bbox
+
+    for dx, dy in _LABEL_CANDIDATES:
+        lb = _est_label_bbox(x_d, y_d, dx, dy, text, font_pt, dpi)
+
+        pt_score  = sum(_overlap_area(lb, pb) for pb in point_bboxes)
+        lbl_score = 3.0 * sum(_overlap_area(lb, pb) for pb in placed_bboxes)
+        oob = (max(0.0, ax0 - lb[0]) + max(0.0, lb[2] - ax1)
+               + max(0.0, ay0 - lb[1]) + max(0.0, lb[3] - ay1)) * 0.5
+
+        score = pt_score + lbl_score + oob
+        if score < best_score:
+            best_score = score
+            best_off   = (dx, dy)
+            best_bbox  = lb
+
+    return best_off, best_bbox
+
+
+# ── Main renderer ──────────────────────────────────────────────────────────────
 
 def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     title: Optional[str] = spec.get("title")
@@ -97,57 +198,38 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     # Collect per-series representative color for legend
     series_colors = [_scatter_color(si, 0) for si in range(n_series)]
 
-    import math as _math
+    # ── Collect point data ─────────────────────────────────────────────────────
+    point_records: List[Dict] = []   # {x, y, size, color, label}
     point_counters = [0] * n_series
-    annotations = []  # collect (x, y, label, color) for deferred label drawing
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
             color = _scatter_color(si, point_counters[si])
             point_counters[si] += 1
             size  = pt.get("size", 150)
-            x, y  = pt.get("x", 0), pt.get("y", 0)
+            x, y  = float(pt.get("x", 0)), float(pt.get("y", 0))
             all_x.append(x)
             all_y.append(y)
             ax.scatter([x], [y], s=size, color=color, alpha=0.85,
                        edgecolors="white", linewidths=1.2, zorder=5)
-            lbl = pt.get("label", "")
-            if lbl:
-                annotations.append((x, y, lbl, color))
+            point_records.append({"x": x, "y": y, "size": size,
+                                   "color": color, "label": pt.get("label", "")})
 
-    # Draw labels after all points so zorder is above grid but below nothing critical.
-    # Semi-transparent background (alpha=0.55) so labels never fully obscure nearby points.
-    bg = spec.get("fig_bg", THEME.BG)
-    for (x, y, lbl, color) in annotations:
-        ax.annotate(
-            lbl, xy=(x, y),
-            xytext=(6, 6), textcoords="offset points",
-            fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
-            zorder=6,
-            bbox=dict(
-                boxstyle="round,pad=0.25",
-                facecolor=bg,
-                alpha=0.35,        # semi-transparent — data points show through
-                edgecolor="none",
-            ),
-        )
-
-    # Quadrant lines at midpoints
+    # Quadrant lines at midpoints (must be set before we read axis limits)
     if all_x and all_y and quadrant_labels:
         mx = (max(all_x) + min(all_x)) / 2
         my = (max(all_y) + min(all_y)) / 2
         ax.axvline(mx, color=THEME.BORDER, linewidth=1.0, linestyle="--", zorder=1)
         ax.axhline(my, color=THEME.BORDER, linewidth=1.0, linestyle="--", zorder=1)
-        pad = 0.04
         xl, xr = ax.get_xlim() if ax.get_xlim()[0] != ax.get_xlim()[1] else (min(all_x)-1, max(all_x)+1)
         yl, yu = ax.get_ylim() if ax.get_ylim()[0] != ax.get_ylim()[1] else (min(all_y)-1, max(all_y)+1)
         ax.set_xlim(xl, xr)
         ax.set_ylim(yl, yu)
         qlabels = (quadrant_labels + [""] * 4)[:4]
         positions = [
-            (xl + (mx - xl) * 0.1, yu - (yu - my) * 0.1),   # top-left
-            (mx + (xr - mx) * 0.1, yu - (yu - my) * 0.1),   # top-right
-            (xl + (mx - xl) * 0.1, yl + (my - yl) * 0.1),   # bottom-left
-            (mx + (xr - mx) * 0.1, yl + (my - yl) * 0.1),   # bottom-right
+            (xl + (mx - xl) * 0.1, yu - (yu - my) * 0.1),
+            (mx + (xr - mx) * 0.1, yu - (yu - my) * 0.1),
+            (xl + (mx - xl) * 0.1, yl + (my - yl) * 0.1),
+            (mx + (xr - mx) * 0.1, yl + (my - yl) * 0.1),
         ]
         for ql, (qx, qy) in zip(qlabels, positions):
             if ql:
@@ -157,7 +239,52 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_xlabel(x_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
     ax.set_ylabel(y_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
 
-    # Legend: one entry per point using its label + color, size proportional to bubble size
+    # ── Smart label placement ──────────────────────────────────────────────────
+    # Finalise layout so transData gives accurate display coordinates.
+    plt.tight_layout(rect=[0, 0, 1, 0.93 if title else 1.0], pad=0.4)
+
+    dpi = fig.get_dpi()
+    font_pt = THEME.FS_SMALL
+    bg = spec.get("fig_bg", THEME.BG)
+
+    # Axes bounding box in display pixels (used for out-of-bounds penalty)
+    ax_disp = ax.get_window_extent()
+    axes_bbox = (ax_disp.x0, ax_disp.y0, ax_disp.x1, ax_disp.y1)
+
+    # Build per-point marker bboxes in display pixels
+    marker_bboxes: List[Tuple] = []
+    for rec in point_records:
+        xd, yd = ax.transData.transform((rec["x"], rec["y"]))
+        r_px = (_math.sqrt(rec["size"]) / 2.0) * dpi / 72.0
+        marker_bboxes.append((xd - r_px, yd - r_px, xd + r_px, yd + r_px))
+
+    # Place labels with collision avoidance
+    placed_bboxes: List[Tuple] = []
+    for rec, pt_bbox in zip(point_records, marker_bboxes):
+        if not rec["label"]:
+            continue
+        xd, yd = ax.transData.transform((rec["x"], rec["y"]))
+
+        offset, lbbox = _best_label_offset(
+            xd, yd,
+            rec["label"], font_pt, dpi,
+            marker_bboxes,   # penalise overlap with ALL points
+            placed_bboxes,   # penalise overlap with already-placed labels
+            axes_bbox,
+        )
+        placed_bboxes.append(lbbox)
+
+        dx, dy = offset
+        ax.annotate(
+            rec["label"], xy=(rec["x"], rec["y"]),
+            xytext=(dx, dy), textcoords="offset points",
+            fontsize=font_pt, color=THEME.INK, fontweight="bold",
+            zorder=6,
+            bbox=dict(boxstyle="round,pad=0.25", facecolor=bg,
+                      alpha=0.35, edgecolor="none"),
+        )
+
+    # ── Legend ─────────────────────────────────────────────────────────────────
     legend_handles = []
     seen: set = set()
     leg_counters = [0] * n_series
@@ -184,7 +311,6 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
         fig.text(0.5, 0.98, title, ha="center", va="top",
                  fontsize=THEME.FS_TITLE, color=THEME.INK, fontweight="bold")
 
-    plt.tight_layout(rect=[0, 0, 1, 0.93 if title else 1.0], pad=0.4)
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=THEME.DPI, bbox_inches="tight", facecolor=THEME.BG)
     pdf_path = str(output_path).replace(".png", ".pdf")

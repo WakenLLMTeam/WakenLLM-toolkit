@@ -473,7 +473,8 @@ def _assemble_slide(
 
     title_text    = _bpx._truncate(plan.get("title", "Analysis"), 60)
     subtitle_text = _bpx._truncate(plan.get("subtitle", ""), 90)
-    tag_text      = _bpx._truncate(plan.get("tag", ""), 18)
+    _raw_tag = (plan.get("tag") or "").strip()
+    tag_text = "" if _raw_tag.upper() in {"DRAFT", "DRAFT.", "WIP"} else _bpx._truncate(_raw_tag, 18)
 
     title_pt = _bpx._fit_text_pt(title_text, _SLIDE_W - 3.0, _HEADER_H * 0.55, start_pt=26, min_pt=14)
     _add_textbox(
@@ -639,7 +640,7 @@ CRITICAL RULES
 - Return ONLY valid JSON — no markdown fences, no commentary.
 - title      : ≤52 characters, punchy headline
 - subtitle   : ≤85 characters, key context or time range
-- tag        : ≤14 characters, e.g. "CONFIDENTIAL", "DRAFT", "Q2 2025" (optional)
+- tag        : ≤14 characters, e.g. "CONFIDENTIAL", "Q2 2025", "INTERNAL" (optional) — do NOT use "Draft" or "DRAFT"
 - layout     : choose from the layout catalogue below
 - panels     : list of panel objects in panel_index order (0-based)
 - findings   : 3–5 bullet takeaways, each ≤75 characters, action-oriented

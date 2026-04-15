@@ -198,45 +198,62 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
                                                        - max(0, nc - 2) * 0.3)
     small_fs = max(THEME.FS_MICRO, THEME.FS_SMALL - max(0, nr - 5) * 0.3)
 
-    # ── Compute per-cell wrap and dynamic row heights ─────────────────────────
+    # ── Compute per-cell wrap + font-size fitting loop ────────────────────────
+    # Strategy:
+    #   1. Wrap all cells at the current body_fs.
+    #   2. If any row wraps to more than MAX_LINES lines, shrink body_fs by 0.5 pt
+    #      and redo — text can fit in fewer lines at larger visual width per char.
+    #   3. Stop when every row is within MAX_LINES, or body_fs hits MIN_FS.
+    # This guarantees no cell silently overflows its row.
+
+    MAX_LINES: int = 3          # max wrapped lines tolerated per row
+    MIN_FS:   float = THEME.FS_MICRO   # hard floor (typically 6.5 pt)
+
     col_w_units = [float(u) for u in all_units]
     total_w     = sum(col_w_units)
 
-    # For each data cell, compute wrapped line count to set row height
-    char_w_inches = body_fs * 0.58 / 72
-    row_line_counts = []   # max wrapped lines per row (for height sizing)
-    wrapped_cells: List[List[str]] = []
-    wrapped_notes: List[str] = []
+    def _compute_wrapping(fs: float):
+        """Wrap all cells at font size fs. Returns (wrapped_cells, wrapped_notes, row_line_counts)."""
+        cw_in = fs * 0.58 / 72   # approx inch-width of one ASCII char at this font size
+        _wc: List[List[str]] = []
+        _wn: List[str]       = []
+        _lc: List[int]       = []
+        for _ri, _row_label in enumerate(rows):
+            _max = 1
+            _rw  = []
+            for _ci in range(nc):
+                _ct   = (cells[_ri][_ci] if _ri < len(cells) and _ci < len(cells[_ri]) else "—") or "—"
+                _cwin = (col_w_units[_ci + 1] / total_w) * fw
+                _mvw  = max(4.0, _cwin / cw_in * 0.85)
+                _wt   = _wrap_cell_text(_ct, _mvw)
+                _rw.append(_wt)
+                _max  = max(_max, len(_wt.split("\n")))
+            _wc.append(_rw)
+            # Row label
+            _rhin = (col_w_units[0] / total_w) * fw
+            _rmvw = max(4.0, _rhin / cw_in * 0.85)
+            _rlw  = _wrap_cell_text(_row_label, _rmvw)
+            _max  = max(_max, len(_rlw.split("\n")))
+            # Note
+            if has_notes:
+                _note   = (row_notes[_ri] if _ri < len(row_notes) else "").strip()
+                _ncwin  = (col_w_units[nc + 1] / total_w) * fw
+                _nmvw   = max(4.0, _ncwin / (small_fs * 0.58 / 72) * 0.85)
+                _nw     = _wrap_cell_text(_note, _nmvw)
+                _wn.append(_nw)
+                _max = max(_max, len(_nw.split("\n")))
+            else:
+                _wn.append("")
+            _lc.append(_max)
+        return _wc, _wn, _lc
 
-    for ri, row_label in enumerate(rows):
-        max_lines = 1
-        row_wrapped = []
-        for ci in range(nc):
-            cell_text = (cells[ri][ci] if ri < len(cells) and ci < len(cells[ri]) else "—") or "—"
-            col_w_in  = (col_w_units[ci + 1] / total_w) * fw
-            max_vw    = max(4.0, col_w_in / char_w_inches * 0.85)
-            wt        = _wrap_cell_text(cell_text, max_vw)
-            row_wrapped.append(wt)
-            max_lines = max(max_lines, len(wt.split("\n")))
-        wrapped_cells.append(row_wrapped)
-        # Row label wrap
-        rh_col_in = (col_w_units[0] / total_w) * fw
-        rh_max_vw = max(4.0, rh_col_in / char_w_inches * 0.85)
-        rl_w      = _wrap_cell_text(row_label, rh_max_vw)
-        max_lines = max(max_lines, len(rl_w.split("\n")))
-        # Note wrap (if any)
-        if has_notes:
-            note = (row_notes[ri] if ri < len(row_notes) else "").strip()
-            note_col_in = (col_w_units[nc + 1] / total_w) * fw
-            note_max_vw = max(4.0, note_col_in / (small_fs * 0.58 / 72) * 0.85)
-            note_w = _wrap_cell_text(note, note_max_vw)
-            wrapped_notes.append(note_w)
-            max_lines = max(max_lines, len(note_w.split("\n")))
-        else:
-            wrapped_notes.append("")
-        row_line_counts.append(max_lines)
+    # Iteratively shrink body_fs until all rows ≤ MAX_LINES (or hit MIN_FS)
+    wrapped_cells, wrapped_notes, row_line_counts = _compute_wrapping(body_fs)
+    while max(row_line_counts) > MAX_LINES and body_fs > MIN_FS:
+        body_fs = max(MIN_FS, body_fs - 0.5)
+        wrapped_cells, wrapped_notes, row_line_counts = _compute_wrapping(body_fs)
 
-    # Dynamic row heights: 1.0 unit per line, minimum 1.0
+    # Dynamic row heights: taller rows for multi-line content
     row_h_units = [1.1] + [max(1.0, lc * 0.9) for lc in row_line_counts]
     total_h     = sum(row_h_units)
 
@@ -263,10 +280,11 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
 
     # ── Header row ────────────────────────────────────────────────────────────
     _dc(0, 0, "", bg=_HEADER_BG, fg=_HEADER_FG, bold=True, fs=body_fs)
+    _final_cw_in = body_fs * 0.58 / 72   # char width at final (possibly reduced) body_fs
     for ci, col in enumerate(cols):
         bg = _HEADER_BG_HI if ci == highlight_col else _HEADER_BG
         col_w_in  = (col_w_units[ci + 1] / total_w) * fw
-        col_max_vw = max(4.0, col_w_in / char_w_inches * 0.85)
+        col_max_vw = max(4.0, col_w_in / _final_cw_in * 0.85)
         col_wrapped = _wrap_cell_text(col, col_max_vw)
         _dc(ci + 1, 0, col_wrapped, bg=bg, fg=_HEADER_FG, bold=True, fs=body_fs)
     if has_notes:
@@ -275,9 +293,9 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
     # ── Data rows (use pre-wrapped text) ──────────────────────────────────────
     for ri, row_label in enumerate(rows):
         row_bg = THEME.ALT_ROW if ri % 2 == 0 else THEME.BG
-        # Row label — wrap it too
+        # Row label — wrap it too (use final body_fs char width)
         rh_col_in  = (col_w_units[0] / total_w) * fw
-        rh_max_vw  = max(4.0, rh_col_in / char_w_inches * 0.85)
+        rh_max_vw  = max(4.0, rh_col_in / _final_cw_in * 0.85)
         rl_wrapped = _wrap_cell_text(row_label, rh_max_vw)
         _dc(0, ri + 1, rl_wrapped, bg=row_bg, fg=THEME.INK, bold=True, fs=body_fs)
         for ci in range(nc):

@@ -126,7 +126,7 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
             bbox=dict(
                 boxstyle="round,pad=0.25",
                 facecolor=bg,
-                alpha=0.55,        # semi-transparent — data points show through
+                alpha=0.35,        # semi-transparent — data points show through
                 edgecolor="none",
             ),
         )

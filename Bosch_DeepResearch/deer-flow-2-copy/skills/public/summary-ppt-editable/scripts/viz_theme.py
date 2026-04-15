@@ -336,3 +336,18 @@ def get_series_colors(n: int, palette: str = "categorical", **kwargs) -> list[st
 
 
 MORANDI_PALETTE = MorandiPalette  # alias for backward compat
+
+
+def get_morandi_cmap(scheme: str = "blue"):
+    """
+    Return a Morandi-style matplotlib LinearSegmentedColormap for heatmaps.
+    scheme: "blue" | "green" | "red" | "purple" | "diverging"
+    """
+    import matplotlib.colors as mcolors
+    _HUE_MAP = {"blue": 220.0, "green": 130.0, "red": 5.0, "purple": 265.0}
+    if scheme == "diverging":
+        colors = get_diverging_palette(9)
+    else:
+        hue = _HUE_MAP.get(scheme, 220.0)
+        colors = get_sequential_palette(9, base_hue=hue)
+    return mcolors.LinearSegmentedColormap.from_list(f"morandi_{scheme}", colors)

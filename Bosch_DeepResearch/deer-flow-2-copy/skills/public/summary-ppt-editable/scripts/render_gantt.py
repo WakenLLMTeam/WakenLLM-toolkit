@@ -53,7 +53,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
@@ -86,6 +86,7 @@ def render_gantt(spec: Dict[str, Any], output_path: str) -> str:
     ax.xaxis.grid(True, color=THEME.BORDER, linewidth=0.5, linestyle="--", alpha=0.5)
     ax.set_axisbelow(True)
 
+    morandi_colors = get_categorical_palette(n_tasks)
     row_h = 0.6
     label_w = 0.22  # fraction of x-axis reserved for task labels
     total_cols = n_cols
@@ -102,14 +103,15 @@ def render_gantt(spec: Dict[str, Any], output_path: str) -> str:
     for ti, task in enumerate(reversed(tasks)):
         start = task.get("start", 0)
         end = task.get("end", start)
-        color = task.get("color", THEME.ACCENT_LIGHT)
+        mi = (n_tasks - 1 - ti) % len(morandi_colors)
+        color = task.get("color") or morandi_colors[mi]
         is_milestone = task.get("milestone", False)
         y = ti
 
         if is_milestone:
             # Diamond marker
             ax.plot(start, y, marker="D", markersize=10,
-                    color=task.get("color", THEME.ACCENT),
+                    color=color,
                     markeredgecolor="white", markeredgewidth=1.2,
                     zorder=5)
             ax.text(start, y + 0.35, task.get("label", ""),

@@ -75,15 +75,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 
-from viz_theme import THEME, setup_matplotlib, fit_fontsize
+from viz_theme import THEME, setup_matplotlib, fit_fontsize, get_categorical_palette
 
 setup_matplotlib()
 
 
-_LAYER_COLORS = [
-    "#dbeafe", "#dcfce7", "#fef9c3", "#f3e8ff",
-    "#fce7f3", "#ffedd5", "#ecfdf5", "#ede9fe",
-]
+_LAYER_COLORS = get_categorical_palette(8)
 
 
 def _is_dark(hex_color: str) -> bool:

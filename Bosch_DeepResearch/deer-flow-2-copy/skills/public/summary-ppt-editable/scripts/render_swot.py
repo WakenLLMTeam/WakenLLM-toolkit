@@ -59,10 +59,16 @@ _SWOT_POSITIONS = {
     "threats":       (1, 0),
 }
 _SWOT_HEADER_COLORS = {
-    "strengths":     "#6dbf8a",   # soft green
-    "weaknesses":    "#e07070",   # soft red
-    "opportunities": "#93c5fd",   # soft blue
-    "threats":       "#d4aa30",   # soft amber
+    "strengths":     "#94A888",   # Morandi muted olive-green
+    "weaknesses":    "#B494A8",   # Morandi dusty rose
+    "opportunities": "#8EACCF",   # Morandi slate-blue
+    "threats":       "#C9B896",   # Morandi dusty tan
+}
+_SWOT_DEFAULT_COLORS = {
+    "strengths":     "#e8f0e5",   # very light Morandi sage
+    "weaknesses":    "#f0e8ec",   # very light Morandi rose
+    "opportunities": "#e5eaf0",   # very light Morandi blue
+    "threats":       "#f0ebe0",   # very light Morandi tan
 }
 
 
@@ -87,7 +93,7 @@ def render_swot(spec: Dict[str, Any], output_path: str) -> str:
 
     for key, (col, row) in _SWOT_POSITIONS.items():
         q = quadrants.get(key, {})
-        color = q.get("color", THEME.SURFACE)
+        color = q.get("color") or _SWOT_DEFAULT_COLORS.get(key, THEME.SURFACE)
         items: List[str] = q.get("items", [])
         header_color = _SWOT_HEADER_COLORS.get(key, THEME.ACCENT)
         label, subtitle = _SWOT_LABELS.get(key, (key.title(), ""))

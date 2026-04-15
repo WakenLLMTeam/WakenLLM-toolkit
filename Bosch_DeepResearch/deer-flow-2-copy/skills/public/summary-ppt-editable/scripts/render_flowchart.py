@@ -55,7 +55,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import FancyBboxPatch
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib, fit_fontsize
+from viz_theme import THEME, setup_matplotlib, fit_fontsize, get_categorical_palette
 
 setup_matplotlib()
 
@@ -337,13 +337,15 @@ def render_flowchart(spec: Dict[str, Any], output_path: str) -> str:
                     zorder=6)
 
     # ── Nodes ─────────────────────────────────────────────────────────────────
-    for n in nodes:
+    morandi_colors = get_categorical_palette(len(nodes))
+    for ni, n in enumerate(nodes):
         nid = n["id"]
         if nid not in pos:
             continue
         x, y = pos[nid]
         _draw_node(ax, x, y, n.get("label", nid),
-                   n.get("shape", "rect"), n.get("color", THEME.SURFACE),
+                   n.get("shape", "rect"),
+                   n.get("color") or morandi_colors[ni % len(morandi_colors)],
                    bw, bh, fontsize=node_fs)
 
     if title:

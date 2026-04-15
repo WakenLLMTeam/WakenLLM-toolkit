@@ -58,7 +58,7 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
@@ -100,6 +100,7 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
     dot_size_outer = max(18, 28 - max(0, n - 4) * 2)
     dot_size_inner = max(14, 22 - max(0, n - 4) * 2)
 
+    morandi_colors = get_categorical_palette(n)
     xs = np.linspace(0.07, 0.93, n)
 
     fig, ax = plt.subplots(figsize=(fw, fh))
@@ -128,7 +129,7 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
                 color=ring_color, zorder=3)
         # ── Fill ──────────────────────────────────────────────────────────────
         ax.plot(x, 0.50, "o", markersize=dot_size_inner,
-                color=THEME.ACCENT_LIGHT if active else THEME.SURFACE, zorder=4)
+                color=morandi_colors[i], zorder=4)
         # ── Number ────────────────────────────────────────────────────────────
         ax.text(x, 0.50, str(i + 1),
                 ha="center", va="center",
@@ -146,7 +147,7 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
         anno = stage.get("annotation", "")
         if anno:
             pill_y = (0.50 + tick_len + 0.09) if anno_above else (0.50 - tick_len - 0.09)
-            pill_bg = THEME.ACCENT_LIGHT if active else THEME.SURFACE
+            pill_bg = morandi_colors[i]
             ax.text(x, pill_y, anno,
                     ha="center", va="center",
                     fontsize=anno_fs, color=THEME.INK, fontweight="bold",

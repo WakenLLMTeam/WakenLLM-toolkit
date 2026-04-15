@@ -35,7 +35,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
@@ -74,8 +74,9 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
         ]
 
     # Draw circles — black outline, semi-transparent fill
+    morandi_colors = get_categorical_palette(n)
     for ci, (circle, (cx, cy)) in enumerate(zip(circles, centers)):
-        color = circle.get("color", THEME.SURFACE)
+        color = circle.get("color") or morandi_colors[ci]
         patch = plt.Circle((cx, cy), R, color=color, alpha=alpha,
                             ec="black", lw=2.0, zorder=2)
         ax.add_patch(patch)

@@ -23,7 +23,9 @@ from viz_theme import THEME, setup_matplotlib
 
 setup_matplotlib()
 
-_HEADER_BG = "#dbeafe"
+_HEADER_BG        = "#AAB7C4"   # Morandi grey-blue header
+_HEADER_BG_HI     = "#8EACCF"   # Morandi slate-blue for highlighted column header
+_CELL_HI_BG       = "#dde4ea"   # very light Morandi tint for highlighted data cells
 _HEADER_FG = THEME.INK
 
 
@@ -128,7 +130,7 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
     _draw_cell(ax, cx(0), cy(0), cw(0), ch(0),
                "", bg=_HEADER_BG, fg=_HEADER_FG, bold=True, fontsize=body_fs)
     for ci, col in enumerate(cols):
-        bg = "#bfdbfe" if ci == highlight_col else _HEADER_BG
+        bg = _HEADER_BG_HI if ci == highlight_col else _HEADER_BG
         _draw_cell(ax, cx(ci + 1), cy(0), cw(ci + 1), ch(0),
                    col, bg=bg, fg=_HEADER_FG, bold=True, fontsize=body_fs)
     if has_notes:
@@ -145,7 +147,7 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
         row_cells = cells[ri] if ri < len(cells) else []
         for ci in range(nc):
             cell_text = row_cells[ci] if ci < len(row_cells) else "—"
-            bg = THEME.ACCENT_LIGHT if ci == highlight_col else row_bg
+            bg = _CELL_HI_BG if ci == highlight_col else row_bg
             _draw_cell(ax, cx(ci + 1), cy(ri + 1), cw(ci + 1), ch(ri + 1),
                        cell_text, bg=bg, fg=THEME.INK,
                        bold=(ci == highlight_col), fontsize=body_fs)

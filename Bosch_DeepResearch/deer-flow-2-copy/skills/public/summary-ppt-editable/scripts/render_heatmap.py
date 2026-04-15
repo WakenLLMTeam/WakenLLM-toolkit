@@ -34,17 +34,9 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_morandi_cmap
 
 setup_matplotlib()
-
-_COLORMAPS = {
-    "blue":      "Blues",
-    "red":       "Reds",
-    "green":     "Greens",
-    "diverging": "RdYlGn",
-    "purple":    "Purples",
-}
 
 
 def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
@@ -67,7 +59,7 @@ def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
     fig.patch.set_facecolor(THEME.BG)
     ax.set_facecolor(THEME.BG)
 
-    cmap_name = _COLORMAPS.get(color_scheme, "Blues")
+    cmap_name = get_morandi_cmap(color_scheme)
     im = ax.imshow(data, cmap=cmap_name, aspect="auto", vmin=data.min(), vmax=data.max())
 
     ax.set_xticks(np.arange(len(cols)))

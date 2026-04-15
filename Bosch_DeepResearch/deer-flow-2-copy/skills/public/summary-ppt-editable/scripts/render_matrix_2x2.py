@@ -37,7 +37,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
@@ -59,8 +59,14 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_ylim(0, 1)
     ax.axis("off")
 
-    # Quadrant backgrounds
-    _DEFAULT_Q = {"label": "", "color": THEME.SURFACE}
+    # Quadrant backgrounds — default to 4 distinct Morandi colors
+    _mc = get_categorical_palette(4)
+    _DEFAULT_Q_COLORS = {
+        "top_left":     _mc[0],
+        "top_right":    _mc[1],
+        "bottom_left":  _mc[2],
+        "bottom_right": _mc[3],
+    }
     q_map = {
         "bottom_left":  (0.0, 0.0),
         "bottom_right": (0.5, 0.0),
@@ -68,18 +74,20 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
         "top_right":    (0.5, 0.5),
     }
     for qkey, (qx, qy) in q_map.items():
-        q = {**_DEFAULT_Q, **quadrants.get(qkey, {})}
+        q = quadrants.get(qkey, {})
+        color = q.get("color") or _DEFAULT_Q_COLORS[qkey]
         rect = mpatches.FancyBboxPatch(
             (qx + 0.005, qy + 0.005), 0.49, 0.49,
             boxstyle="round,pad=0.008",
-            facecolor=q["color"], edgecolor=THEME.BORDER, linewidth=0.8,
+            facecolor=color, edgecolor=THEME.BORDER, linewidth=0.8,
             transform=ax.transAxes, zorder=1
         )
         ax.add_patch(rect)
-        if q["label"]:
+        label = q.get("label", "")
+        if label:
             lx = qx + 0.25
             ly = qy + 0.46
-            ax.text(lx, ly, q["label"],
+            ax.text(lx, ly, label,
                     ha="center", va="top",
                     fontsize=THEME.FS_H1, color=THEME.INK,
                     fontweight="bold",
@@ -128,6 +136,7 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
         return pts
 
     spread_pts = _spread(items)
+    morandi_items = get_categorical_palette(max(len(items), 1))
 
     # Map [0,1] → axes fraction [0.04, 0.96]
     def _to_ax(v):
@@ -136,7 +145,7 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
     for idx, it in enumerate(items):
         ix = _to_ax(spread_pts[idx][0])
         iy = _to_ax(spread_pts[idx][1])
-        color = it.get("color", THEME.ACCENT)
+        color = it.get("color") or morandi_items[idx % len(morandi_items)]
         label = it.get("label", "")
         ax.scatter([ix], [iy], s=240, color=color, zorder=5,
                    edgecolors="white", linewidths=1.4,

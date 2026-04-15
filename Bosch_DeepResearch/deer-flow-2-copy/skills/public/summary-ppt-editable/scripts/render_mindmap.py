@@ -43,15 +43,12 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch, Circle
 from matplotlib.path import Path as MplPath
 
-from viz_theme import THEME, setup_matplotlib, fit_fontsize
+from viz_theme import THEME, setup_matplotlib, fit_fontsize, get_categorical_palette
 
 setup_matplotlib()
 
-# Morandi-inspired professional palette
-_MORANDI = [
-    "#A8C4D9", "#B5C9B8", "#D9C9A8", "#C9B5C4",
-    "#B8C4C9", "#D9B8A8", "#C4D4C0", "#D4C4A8",
-]
+# Morandi palette from viz_theme (8 colors for branch rotation)
+_MORANDI = get_categorical_palette(8)
 
 # Node geometry constants (data coords, half-dimensions)
 _BHW = 0.22   # branch half-width  (total 0.44)

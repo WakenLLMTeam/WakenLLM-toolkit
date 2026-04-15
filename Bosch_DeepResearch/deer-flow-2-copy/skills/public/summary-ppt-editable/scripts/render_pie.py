@@ -77,17 +77,12 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
-# ── Default pastel palette (cycles if no color specified) ─────────────────────
-_PALETTE = [
-    "#ABCBDF", "#F0C284", "#D6EFF4", "#F5EBAE",
-    "#F7FBC9", "#B8E0EA", "#fce7f3", "#dcfce7",
-    "#ede9fe", "#ffedd5", "#dbeafe", "#f3e8ff",
-    "#fef9c3", "#fee2e2", "#ecfdf5", "#fdf4ff",
-]
+# ── Default Morandi palette (cycles if no color specified) ────────────────────
+_PALETTE = get_categorical_palette(18)
 
 
 def _auto_color(idx: int, user_color: Optional[str]) -> str:

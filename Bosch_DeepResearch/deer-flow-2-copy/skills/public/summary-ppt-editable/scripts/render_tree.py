@@ -55,7 +55,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from viz_theme import THEME, setup_matplotlib
+from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
@@ -124,6 +124,13 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
             return float(max_depth - raw_y), float(n_leaves - 1 - raw_x)
         return float(raw_x), float(max_depth - raw_y)
 
+    # Pre-assign Morandi colors to nodes that don't have an explicit color
+    all_nd = [root] + _all_nodes(root)
+    morandi_colors = get_categorical_palette(len(all_nd))
+    for ni, nd in enumerate(all_nd):
+        if not nd.get("color"):
+            nd["_morandi_color"] = morandi_colors[ni % len(morandi_colors)]
+
     # Node box size — adaptive to figure and tree size
     all_nd = [root] + _all_nodes(root)
     all_labels = [str(n.get("label", "x")) for n in all_nd]
@@ -170,7 +177,7 @@ def render_tree(spec: Dict[str, Any], output_path: str) -> str:
         raw_x, raw_y = positions[nid]
         dx, dy = get_data_pos(raw_x, raw_y)
 
-        color = node.get("color", THEME.SURFACE)
+        color = node.get("color") or node.get("_morandi_color", THEME.SURFACE)
         label = _wrap_label(node.get("label", ""))
         is_root = (nid == "0")
         border_color = THEME.ACCENT if is_root else THEME.BORDER

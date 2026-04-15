@@ -104,7 +104,7 @@ _RENDERERS = {
     "funnel":     render_funnel.render_funnel,
     "pie":        render_pie.render_pie,
     # Structure
-    "mindmap":    render_mindmap.render_mindmap,
+    # "mindmap": render_mindmap.render_mindmap,  # disabled — use tree instead
     "tree":       render_tree.render_tree,
     "matrix_2x2":render_matrix_2x2.render_matrix_2x2,
     "venn":       render_venn.render_venn,

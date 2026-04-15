@@ -14,11 +14,77 @@ import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+import math as _math
+
 from pptx import Presentation
 from pptx.dml.color import RGBColor
 from pptx.enum.shapes import MSO_SHAPE
 from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
 from pptx.util import Inches, Pt
+
+
+# ── Text-fit utility ──────────────────────────────────────────────────────────
+
+def _fit_text_pt(
+    text: str,
+    box_w_in: float,
+    box_h_in: float,
+    start_pt: float,
+    min_pt: float = 9.0,
+    line_spacing: float = 1.35,
+) -> int:
+    """
+    Return largest integer pt ≤ start_pt such that `text` fits in a word-wrapped
+    box of box_w_in × box_h_in inches.
+
+    CJK characters (U+2E80+) count as 1.8× the width of an ASCII character.
+    Heuristic char width ≈ 0.55 × pt / 72 inches (proportional font, average).
+    """
+    if not text or box_w_in <= 0 or box_h_in <= 0:
+        return int(max(start_pt, min_pt))
+    pt = float(start_pt)
+    while pt > min_pt:
+        char_w = 0.55 * pt / 72
+        visual_len = sum(1.8 if ord(c) > 0x2E80 else 1.0 for c in text)
+        chars_per_line = max(1.0, (box_w_in * 0.90) / char_w)
+        n_lines = _math.ceil(visual_len / chars_per_line)
+        line_h = line_spacing * pt / 72
+        if n_lines * line_h <= box_h_in * 0.92:
+            break
+        pt -= 0.5
+    return int(max(pt, min_pt))
+
+
+def _fit_bullets_pt(
+    bullets: List[str],
+    box_w_in: float,
+    box_h_in: float,
+    start_pt: float = 20.0,
+    min_pt: float = 9.0,
+    line_spacing: float = 1.4,
+    space_after_ratio: float = 0.40,
+) -> int:
+    """
+    Return largest integer pt such that all bullet lines fit in the box.
+    Each bullet may word-wrap; space_after = pt * space_after_ratio / 72 inches.
+    """
+    lines = [(b or "").strip() for b in bullets if (b or "").strip()]
+    if not lines or box_w_in <= 0 or box_h_in <= 0:
+        return int(max(start_pt, min_pt))
+    pt = float(start_pt)
+    while pt > min_pt:
+        char_w = 0.55 * pt / 72
+        line_h = (line_spacing * pt + pt * space_after_ratio) / 72
+        total_h = 0.0
+        for text in lines:
+            visual_len = sum(1.8 if ord(c) > 0x2E80 else 1.0 for c in text)
+            chars_per_line = max(1.0, (box_w_in * 0.88) / char_w)
+            n_wrap = _math.ceil(visual_len / chars_per_line)
+            total_h += n_wrap * line_h
+        if total_h <= box_h_in * 0.92:
+            break
+        pt -= 0.5
+    return int(max(pt, min_pt))
 
 
 def _add_picture_fit(slide, img_path: str, box_left, box_top, box_w, box_h):
@@ -371,6 +437,8 @@ def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RG
     if not lines:
         text_frame.paragraphs[0].text = ""
         return
+    # space_after scales with font: 8pt at ≥18pt, 5pt at 13pt, 2pt at ≤10pt
+    space_after = Pt(max(2, int(size_pt * 0.45)))
     first = True
     for line in lines:
         p = text_frame.paragraphs[0] if first else text_frame.add_paragraph()
@@ -379,7 +447,7 @@ def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RG
         p.level = 0
         p.font.size = Pt(size_pt)
         p.font.color.rgb = body_rgb
-        p.space_after = Pt(8)
+        p.space_after = space_after
         try:
             p.font.name = font_name
         except Exception:
@@ -512,6 +580,11 @@ def _add_module_cards(
             badge.line.fill.background()
             badge.adjustments[0] = 0.50  # full pill
 
+            _badge_inner_w = max(0.3, float(badge_w - Inches(0.12)) / 914400)
+            _badge_inner_h = max(0.15, float(BADGE_H) / 914400)
+            _h_text_trunc = _truncate(h_text, 18)
+            _badge_pt = _fit_text_pt(_h_text_trunc, _badge_inner_w, _badge_inner_h,
+                                     start_pt=heading_pt, min_pt=9)
             htb = sld.shapes.add_textbox(
                 badge_lx + Inches(0.06), badge_top,
                 badge_w - Inches(0.06), BADGE_H,
@@ -519,9 +592,9 @@ def _add_module_cards(
             htf = htb.text_frame
             htf.vertical_anchor = MSO_ANCHOR.MIDDLE
             hp  = htf.paragraphs[0]
-            hp.text = _truncate(h_text, 18)
+            hp.text = _h_text_trunc
             hp.font.bold = True
-            hp.font.size = Pt(heading_pt)
+            hp.font.size = Pt(_badge_pt)
             hp.font.color.rgb = heading_rgb
             hp.alignment = PP_ALIGN.CENTER
             try:
@@ -586,9 +659,12 @@ def _render_content_body(
         return
 
     bullets = [(b or "").strip() for b in (slide.get("bullets") or []) if (b or "").strip()]
-    n = max(len(bullets), 1)
-    natural = (float(height) / 914400 * 0.80 * 72) / (n * (1.4 + 8 / 72))
-    size_pt = int(max(13, min(22, natural)))
+    box_w_in = float(width) / 914400
+    box_h_in = float(height) / 914400
+    # Inner text area shrinks by margins: ~0.14+0.10 = 0.24in horiz, ~0.10+0.08 = 0.18in vert
+    inner_w = max(0.5, box_w_in - 0.24)
+    inner_h = max(0.3, box_h_in - 0.18)
+    size_pt = _fit_bullets_pt(bullets, inner_w, inner_h, start_pt=20, min_pt=9)
     tf = _add_body_region(sld, left, top, width, height, accent_rgb)
     _add_bullets(tf, bullets, font_name=font_name, body_rgb=body_rgb, size_pt=size_pt)
 
@@ -645,13 +721,17 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             dot.line.fill.background()
 
             # Title (upper 60% of slide)
+            _title_text = _truncate(slide.get("title", ""), 40)
+            _title_box_w = float(slide_w - Inches(2.0)) / 914400
+            _title_box_h = 2.2
+            _title_pt = _fit_text_pt(_title_text, _title_box_w, _title_box_h, start_pt=40, min_pt=20)
             box = sld.shapes.add_textbox(Inches(1.0), Inches(1.5), slide_w - Inches(2.0), Inches(2.2))
             tf = box.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
-            p.text = _truncate(slide.get("title", ""), 40)
+            p.text = _title_text
             p.font.bold = True
-            p.font.size = Pt(40)
+            p.font.size = Pt(_title_pt)
             p.font.color.rgb = title_rgb
             p.alignment = PP_ALIGN.CENTER
             try:
@@ -671,6 +751,10 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             # Subtitle inside accent band (white text)
             sub = slide.get("subtitle") or ""
             if sub:
+                _sub_text = _truncate(sub, 70)
+                _sub_pt = _fit_text_pt(_sub_text,
+                                       float(slide_w - Inches(2.0)) / 914400, 0.88,
+                                       start_pt=18, min_pt=11)
                 sub_box = sld.shapes.add_textbox(
                     Inches(1.0), slide_h - band_h + Inches(0.38),
                     slide_w - Inches(2.0), Inches(0.88),
@@ -678,8 +762,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 stf = sub_box.text_frame
                 stf.word_wrap = True
                 sp = stf.paragraphs[0]
-                sp.text = _truncate(sub, 70)
-                sp.font.size = Pt(18)
+                sp.text = _sub_text
+                sp.font.size = Pt(_sub_pt)
                 sp.font.color.rgb = RGBColor(255, 255, 255)
                 sp.alignment = PP_ALIGN.CENTER
                 try:
@@ -716,14 +800,17 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                     pass
 
             # Section title (left-aligned, center-vertical)
+            _sec_title = _truncate(slide.get("title", ""), 40)
+            _sec_box_w = float(int(slide_w * 0.68)) / 914400
+            _sec_pt = _fit_text_pt(_sec_title, _sec_box_w, 1.6, start_pt=34, min_pt=18)
             box = sld.shapes.add_textbox(
                 Inches(0.85), Inches(2.55), int(slide_w * 0.68), Inches(1.6),
             )
             tf = box.text_frame
             p = tf.paragraphs[0]
-            p.text = _truncate(slide.get("title", ""), 40)
+            p.text = _sec_title
             p.font.bold = True
-            p.font.size = Pt(34)
+            p.font.size = Pt(_sec_pt)
             p.font.color.rgb = title_rgb
             try:
                 p.font.name = font_title
@@ -741,27 +828,23 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
         else:
             # content | summary | cards
             title_h = Inches(0.95)
+            _ct_text = _truncate(slide.get("title", ""), 40)
+            _ct_box_w = float(slide_w - Inches(1.1)) / 914400
+            _ct_pt = _fit_text_pt(_ct_text, _ct_box_w, 0.95, start_pt=26, min_pt=14)
             tb = sld.shapes.add_textbox(Inches(0.55), Inches(0.35), slide_w - Inches(1.1), title_h)
             tfp = tb.text_frame
             tfp.word_wrap = True
             pp = tfp.paragraphs[0]
-            pp.text = _truncate(slide.get("title", ""), 40)
+            pp.text = _ct_text
             pp.font.bold = True
-            pp.font.size = Pt(26)
+            pp.font.size = Pt(_ct_pt)
             pp.font.color.rgb = title_rgb
             try:
                 pp.font.name = font_title
             except Exception:
                 pass
 
-            # Short accent underline below slide title
-            _uline = sld.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE,
-                Inches(0.55), Inches(1.28), Inches(1.2), Inches(0.04),
-            )
-            _uline.fill.solid()
-            _uline.fill.fore_color.rgb = accent
-            _uline.line.fill.background()
+            # (accent underline below slide title removed)
 
             # ── Cards layout ──────────────────────────────────────────────
             cards = slide.get("cards")
@@ -813,13 +896,11 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             # ── New layout dispatch ───────────────────────────────────────────
             layout = (slide.get("layout") or "default").lower()
 
-            # Adaptive bullet font: scale up when few bullets to fill the space
-            def _bullet_pt(box_h_in: float) -> int:
-                bullets = [b for b in (slide.get("bullets") or []) if (b or "").strip()]
-                n = max(len(bullets), 1)
-                # target ~80% of box height; each line ≈ pt*1.4/72 in + 8pt space
-                natural = (box_h_in * 0.80 * 72) / (n * (1.4 + 8 / 72))
-                return int(max(13, min(22, natural)))
+            # Adaptive bullet font: use _fit_bullets_pt for accurate CJK-aware sizing
+            def _bullet_pt(box_h_in: float, box_w_in: float = 0) -> int:
+                buls = [b for b in (slide.get("bullets") or []) if (b or "").strip()]
+                _w = box_w_in or float(full_text_w) / 914400
+                return _fit_bullets_pt(buls, _w, box_h_in, start_pt=20, min_pt=9)
 
             def _caption_box(sld, actual, fig, font_body, body_rgb):
                 cap = fig.get("caption")
@@ -844,7 +925,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 mid = (len(all_bullets) + 1) // 2
                 col_w = (full_text_w - Inches(0.45)) / 2
                 body_h = slide_h - top_body - Inches(0.3)
-                bpt = _bullet_pt(float(body_h) / 914400)
+                col_w_in = float(col_w) / 914400
+                bpt = _bullet_pt(float(body_h) / 914400, col_w_in)
                 if all_bullets[:mid]:
                     tf1 = _add_body_region(sld, left_margin, top_body, col_w, body_h, accent)
                     _add_bullets(tf1, all_bullets[:mid], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)

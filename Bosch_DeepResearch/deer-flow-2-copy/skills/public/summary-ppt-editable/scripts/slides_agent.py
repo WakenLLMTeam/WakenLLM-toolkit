@@ -418,8 +418,8 @@ def _validate_viz_spec(viz: Dict[str, Any]) -> Optional[str]:
         if not viz.get("players") or not isinstance(viz["players"], list) or len(viz["players"]) == 0:
             return "radar requires at least one player"
     elif vt == "mindmap":
-        if not viz.get("branches") or not isinstance(viz["branches"], list) or len(viz["branches"]) == 0:
-            return "mindmap requires a non-empty 'branches' list"
+        # mindmap is disabled — treat as unknown so retry picks a different type
+        return "mindmap is disabled; use 'tree' for hierarchical content instead"
     elif vt == "tree":
         if not viz.get("root"):
             return "tree requires a 'root' object"
@@ -450,7 +450,8 @@ _TYPE_ALIASES: Dict[str, str] = {
     "line":         "line_chart",
     "radar_chart":  "radar",
     "spider":       "radar",
-    "mind_map":     "mindmap",
+    # "mind_map": "mindmap",  # mindmap disabled — resolves to tree instead
+    "mind_map":     "tree",
     "flow_chart":   "flowchart",
     "process":      "flowchart",
     "org_chart":    "tree",

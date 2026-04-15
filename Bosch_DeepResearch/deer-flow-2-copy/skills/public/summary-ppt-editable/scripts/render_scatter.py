@@ -236,8 +236,7 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
                 ax.text(qx, qy, ql, fontsize=THEME.FS_SMALL,
                         color=THEME.MUTED, style="italic", alpha=0.7)
 
-    ax.set_xlabel(x_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
-    ax.set_ylabel(y_label, fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
+    # Axis labels omitted — quadrant labels and title convey the meaning
 
     # ── Smart label placement ──────────────────────────────────────────────────
     # Finalise layout so transData gives accurate display coordinates.

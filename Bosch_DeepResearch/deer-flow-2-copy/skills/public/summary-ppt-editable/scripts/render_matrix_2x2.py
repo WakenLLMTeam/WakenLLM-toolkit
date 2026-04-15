@@ -142,28 +142,88 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
     def _to_ax(v):
         return float(v) * 0.92 + 0.04
 
+    # ── Build label offsets with quadrant-centre reference ───────────────────
+    # Using the whole-canvas centre (0.5, 0.5) as the repulsion origin causes
+    # all items in the same quadrant to receive nearly identical angles → labels
+    # pile up.  Instead, use the *quadrant centre* as origin so items within
+    # the same quadrant fan out relative to each other.
+    #
+    # Quadrant centres (in _to_ax space):
+    #   top-right   → (0.75, 0.75)   bottom-right → (0.75, 0.25)
+    #   top-left    → (0.25, 0.75)   bottom-left  → (0.25, 0.25)
+    #
+    # After computing angles we also run a repulsion pass on the label
+    # offsets themselves so that very close labels push each other apart.
+
+    _OFF_DIST_X = 26   # base x offset (points)
+    _OFF_DIST_Y = 20   # base y offset (points)
+
+    # Step 1 – compute initial angle-based offset for each item
+    raw_offsets = []   # [(off_x, off_y), ...]
+    for idx, it in enumerate(items):
+        ix = _to_ax(spread_pts[idx][0])
+        iy = _to_ax(spread_pts[idx][1])
+        # Choose quadrant centre as repulsion origin
+        ref_x = 0.75 if ix >= 0.5 else 0.25
+        ref_y = 0.75 if iy >= 0.5 else 0.25
+        angle = math.atan2(iy - ref_y, ix - ref_x)
+        # If item is exactly on quadrant centre, fall back to canvas centre
+        if abs(ix - ref_x) < 1e-4 and abs(iy - ref_y) < 1e-4:
+            angle = math.atan2(iy - 0.5, ix - 0.5)
+        raw_offsets.append([math.cos(angle) * _OFF_DIST_X,
+                             math.sin(angle) * _OFF_DIST_Y])
+
+    # Step 2 – repulsion pass on label positions (in "offset points" space)
+    # Convert axes coords to approx points for comparison
+    _AX_TO_PT_X = fw * 72   # 1 axes unit ≈ fig_width * 72 pt
+    _AX_TO_PT_Y = fh * 72
+
+    for _ in range(40):
+        moved = False
+        for i in range(len(raw_offsets)):
+            for j in range(i + 1, len(raw_offsets)):
+                lx_i = _to_ax(spread_pts[i][0]) * _AX_TO_PT_X + raw_offsets[i][0]
+                ly_i = _to_ax(spread_pts[i][1]) * _AX_TO_PT_Y + raw_offsets[i][1]
+                lx_j = _to_ax(spread_pts[j][0]) * _AX_TO_PT_X + raw_offsets[j][0]
+                ly_j = _to_ax(spread_pts[j][1]) * _AX_TO_PT_Y + raw_offsets[j][1]
+                dist = math.hypot(lx_i - lx_j, ly_i - ly_j)
+                _MIN_LABEL_SEP = 36   # minimum separation in points
+                if dist < _MIN_LABEL_SEP:
+                    push = (_MIN_LABEL_SEP - dist) / max(dist, 1e-3) * 0.5
+                    dx = lx_i - lx_j
+                    dy = ly_i - ly_j
+                    if dist < 1e-3:
+                        dx, dy = 1.0, 0.0
+                    raw_offsets[i][0] += dx * push
+                    raw_offsets[i][1] += dy * push
+                    raw_offsets[j][0] -= dx * push
+                    raw_offsets[j][1] -= dy * push
+                    moved = True
+        if not moved:
+            break
+
+    # Step 3 – draw items using the repulsion-adjusted offsets
+    # Scale annotation font size down when there are many items
+    ann_fs = THEME.FS_BODY if len(items) <= 5 else THEME.FS_SMALL
+
     for idx, it in enumerate(items):
         ix = _to_ax(spread_pts[idx][0])
         iy = _to_ax(spread_pts[idx][1])
         color = it.get("color") or morandi_items[idx % len(morandi_items)]
         label = it.get("label", "")
-        ax.scatter([ix], [iy], s=240, color=color, zorder=5,
+        ax.scatter([ix], [iy], s=220, color=color, zorder=5,
                    edgecolors="white", linewidths=1.4,
                    transform=ax.transAxes)
-        # Label offset: push away from centre (0.5, 0.5) so labels fan outward
-        cx, cy = 0.5, 0.5
-        angle = math.atan2(iy - cy, ix - cx)
-        off_x = math.cos(angle) * 18
-        off_y = math.sin(angle) * 14
+        off_x, off_y = raw_offsets[idx]
         ha = "left" if off_x >= 0 else "right"
         ax.annotate(
             label,
             xy=(ix, iy), xytext=(off_x, off_y),
             textcoords="offset points",
-            fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
+            fontsize=ann_fs, color=THEME.INK, fontweight="bold",
             ha=ha, va="center",
-            bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="none", alpha=0.75),
-            arrowprops=dict(arrowstyle="-", color=THEME.BORDER, lw=0.8),
+            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none", alpha=0.85),
+            arrowprops=dict(arrowstyle="-", color=THEME.BORDER, lw=0.7),
             transform=ax.transAxes, zorder=6,
         )
 

@@ -29,8 +29,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math as _math
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import matplotlib
 matplotlib.use("Agg")
@@ -40,6 +41,80 @@ import matplotlib.patches as mpatches
 from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
+
+# 16 candidate label offsets (dx, dy) in typographic points
+_LABEL_CANDIDATES: List[Tuple[float, float]] = [
+    (20,  12), (20, -12), (-20,  12), (-20, -12),   # primary diagonals
+    (26,   0), (-26,  0), (  0,  20), (  0, -20),   # cardinals
+    (16,  18), (16, -18), (-16,  18), (-16, -18),   # steep diagonals
+    ( 8,  22), (-8,  22), (  8, -22), ( -8, -22),   # near-vertical
+]
+
+
+def _est_label_bbox(x_d: float, y_d: float,
+                    dx_pt: float, dy_pt: float,
+                    text: str, font_pt: float, dpi: float
+                    ) -> Tuple[float, float, float, float]:
+    """Estimate label bounding box in display pixels (no renderer needed)."""
+    lines = text.split("\n")
+    n_chars = max(len(l) for l in lines) if lines else 1
+    n_lines = len(lines)
+    char_w_px = font_pt * 0.60 * dpi / 72.0
+    char_h_px = font_pt * 1.30 * dpi / 72.0
+    w_px = n_chars * char_w_px + 6
+    h_px = n_lines * char_h_px + 4
+    dx_px = dx_pt * dpi / 72.0
+    dy_px = dy_pt * dpi / 72.0
+    ax_x = x_d + dx_px
+    ax_y = y_d + dy_px
+    if dx_pt >= 0:
+        x0, x1 = ax_x, ax_x + w_px
+    else:
+        x0, x1 = ax_x - w_px, ax_x
+    y0 = ax_y - h_px / 2
+    y1 = ax_y + h_px / 2
+    return (x0, y0, x1, y1)
+
+
+def _overlap_area(b1: Tuple, b2: Tuple) -> float:
+    ox = max(0.0, min(b1[2], b2[2]) - max(b1[0], b2[0]))
+    oy = max(0.0, min(b1[3], b2[3]) - max(b1[1], b2[1]))
+    return ox * oy
+
+
+def _best_label_offset(
+    x_d: float, y_d: float,
+    text: str, font_pt: float, dpi: float,
+    marker_bboxes: List[Tuple],
+    placed_bboxes: List[Tuple],
+    forbidden_bboxes: List[Tuple],  # title + quadrant labels
+    axes_bbox: Tuple,
+) -> Tuple[Tuple[float, float], Tuple]:
+    """
+    Greedy label placement. Lower score = better.
+      • marker overlap      ×1
+      • placed label overlap ×3
+      • forbidden overlap   ×4  (title / quadrant labels)
+      • out-of-axes penalty ×0.5
+    """
+    best_off = _LABEL_CANDIDATES[0]
+    best_score = float("inf")
+    best_bbox: Tuple = _est_label_bbox(x_d, y_d, *_LABEL_CANDIDATES[0], text, font_pt, dpi)
+    ax0, ay0, ax1, ay1 = axes_bbox
+    for dx, dy in _LABEL_CANDIDATES:
+        lb = _est_label_bbox(x_d, y_d, dx, dy, text, font_pt, dpi)
+        score = (
+            sum(_overlap_area(lb, pb) for pb in marker_bboxes)
+            + 3.0 * sum(_overlap_area(lb, pb) for pb in placed_bboxes)
+            + 4.0 * sum(_overlap_area(lb, pb) for pb in forbidden_bboxes)
+            + (max(0.0, ax0 - lb[0]) + max(0.0, lb[2] - ax1)
+               + max(0.0, ay0 - lb[1]) + max(0.0, lb[3] - ay1)) * 0.5
+        )
+        if score < best_score:
+            best_score = score
+            best_off = (dx, dy)
+            best_bbox = lb
+    return best_off, best_bbox
 
 
 def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
@@ -108,8 +183,6 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
             rotation=90, transform=ax.transAxes)
 
     # Spread clustered items so they don't overlap
-    import math
-
     def _spread(raw_items, min_dist: float = 0.10, iterations: int = 80):
         """Repulsion pass: push items apart until no two are closer than min_dist."""
         pts = [[float(it.get("x", 0.5)), float(it.get("y", 0.5))] for it in raw_items]
@@ -119,12 +192,12 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
                 for j in range(i + 1, len(pts)):
                     dx = pts[j][0] - pts[i][0]
                     dy = pts[j][1] - pts[i][1]
-                    dist = math.hypot(dx, dy)
+                    dist = _math.hypot(dx, dy)
                     if dist < min_dist:
                         push = (min_dist - dist) / max(dist, 1e-6) * 0.5
                         if dist < 1e-6:           # exact overlap → push radially
-                            angle = math.pi * 2 * i / max(len(pts), 1)
-                            dx, dy = math.cos(angle), math.sin(angle)
+                            angle = _math.pi * 2 * i / max(len(pts), 1)
+                            dx, dy = _math.cos(angle), _math.sin(angle)
                             push = min_dist * 0.5
                         pts[i][0] = max(0.06, min(0.94, pts[i][0] - dx * push))
                         pts[i][1] = max(0.06, min(0.94, pts[i][1] - dy * push))
@@ -142,79 +215,89 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
     def _to_ax(v):
         return float(v) * 0.92 + 0.04
 
-    # ── Build label offsets with quadrant-centre reference ───────────────────
-    # Using the whole-canvas centre (0.5, 0.5) as the repulsion origin causes
-    # all items in the same quadrant to receive nearly identical angles → labels
-    # pile up.  Instead, use the *quadrant centre* as origin so items within
-    # the same quadrant fan out relative to each other.
-    #
-    # Quadrant centres (in _to_ax space):
-    #   top-right   → (0.75, 0.75)   bottom-right → (0.75, 0.25)
-    #   top-left    → (0.25, 0.75)   bottom-left  → (0.25, 0.25)
-    #
-    # After computing angles we also run a repulsion pass on the label
-    # offsets themselves so that very close labels push each other apart.
-
-    _OFF_DIST_X = 26   # base x offset (points)
-    _OFF_DIST_Y = 20   # base y offset (points)
-
-    # Step 1 – compute initial angle-based offset for each item
-    raw_offsets = []   # [(off_x, off_y), ...]
-    for idx, it in enumerate(items):
-        ix = _to_ax(spread_pts[idx][0])
-        iy = _to_ax(spread_pts[idx][1])
-        # Choose quadrant centre as repulsion origin
-        ref_x = 0.75 if ix >= 0.5 else 0.25
-        ref_y = 0.75 if iy >= 0.5 else 0.25
-        angle = math.atan2(iy - ref_y, ix - ref_x)
-        # If item is exactly on quadrant centre, fall back to canvas centre
-        if abs(ix - ref_x) < 1e-4 and abs(iy - ref_y) < 1e-4:
-            angle = math.atan2(iy - 0.5, ix - 0.5)
-        raw_offsets.append([math.cos(angle) * _OFF_DIST_X,
-                             math.sin(angle) * _OFF_DIST_Y])
-
-    # Step 2 – repulsion pass on label positions (in "offset points" space)
-    # Convert axes coords to approx points for comparison
-    _AX_TO_PT_X = fw * 72   # 1 axes unit ≈ fig_width * 72 pt
-    _AX_TO_PT_Y = fh * 72
-
-    for _ in range(40):
-        moved = False
-        for i in range(len(raw_offsets)):
-            for j in range(i + 1, len(raw_offsets)):
-                lx_i = _to_ax(spread_pts[i][0]) * _AX_TO_PT_X + raw_offsets[i][0]
-                ly_i = _to_ax(spread_pts[i][1]) * _AX_TO_PT_Y + raw_offsets[i][1]
-                lx_j = _to_ax(spread_pts[j][0]) * _AX_TO_PT_X + raw_offsets[j][0]
-                ly_j = _to_ax(spread_pts[j][1]) * _AX_TO_PT_Y + raw_offsets[j][1]
-                dist = math.hypot(lx_i - lx_j, ly_i - ly_j)
-                _MIN_LABEL_SEP = 36   # minimum separation in points
-                if dist < _MIN_LABEL_SEP:
-                    push = (_MIN_LABEL_SEP - dist) / max(dist, 1e-3) * 0.5
-                    dx = lx_i - lx_j
-                    dy = ly_i - ly_j
-                    if dist < 1e-3:
-                        dx, dy = 1.0, 0.0
-                    raw_offsets[i][0] += dx * push
-                    raw_offsets[i][1] += dy * push
-                    raw_offsets[j][0] -= dx * push
-                    raw_offsets[j][1] -= dy * push
-                    moved = True
-        if not moved:
-            break
-
-    # Step 3 – draw items using the repulsion-adjusted offsets
-    # Scale annotation font size down when there are many items
+    # ── Draw scatter dots (no labels yet — need tight_layout first) ───────────
     ann_fs = THEME.FS_BODY if len(items) <= 5 else THEME.FS_SMALL
-
+    item_colors = []
     for idx, it in enumerate(items):
         ix = _to_ax(spread_pts[idx][0])
         iy = _to_ax(spread_pts[idx][1])
         color = it.get("color") or morandi_items[idx % len(morandi_items)]
-        label = it.get("label", "")
+        item_colors.append(color)
         ax.scatter([ix], [iy], s=220, color=color, zorder=5,
                    edgecolors="white", linewidths=1.4,
                    transform=ax.transAxes)
-        off_x, off_y = raw_offsets[idx]
+
+    if title:
+        fig.text(0.5, 0.99, title, ha="center", va="top",
+                 fontsize=THEME.FS_TITLE, color=THEME.INK, fontweight="bold")
+
+    # Finalise layout so transforms give accurate display coordinates
+    plt.tight_layout(rect=[0, 0, 1, 0.95 if title else 1.0], pad=0.4)
+
+    # ── Greedy label placement ─────────────────────────────────────────────────
+    dpi = fig.get_dpi()
+    fig_w_px = fig.get_figwidth() * dpi
+    fig_h_px = fig.get_figheight() * dpi
+
+    ax_disp = ax.get_window_extent()
+    axes_bbox = (ax_disp.x0, ax_disp.y0, ax_disp.x1, ax_disp.y1)
+
+    # Marker bboxes in display pixels
+    marker_r_px = (_math.sqrt(220) / 2.0) * dpi / 72.0
+    marker_bboxes: List[Tuple] = []
+    item_display_coords: List[Tuple[float, float]] = []
+    for idx in range(len(items)):
+        ix = _to_ax(spread_pts[idx][0])
+        iy = _to_ax(spread_pts[idx][1])
+        xd, yd = ax.transAxes.transform((ix, iy))
+        item_display_coords.append((xd, yd))
+        marker_bboxes.append((xd - marker_r_px, yd - marker_r_px,
+                               xd + marker_r_px, yd + marker_r_px))
+
+    # Forbidden zones: title + quadrant header labels
+    # Title: fig.text(0.5, 0.99, ...) — approximate bbox in display pixels
+    forbidden_bboxes: List[Tuple] = []
+    if title:
+        t_fs = THEME.FS_TITLE
+        t_w = len(title) * t_fs * 0.60 * dpi / 72.0
+        t_h = t_fs * 1.5 * dpi / 72.0
+        tx = fig_w_px * 0.5
+        ty = fig_h_px * 0.99
+        forbidden_bboxes.append((tx - t_w / 2, ty - t_h, tx + t_w / 2, ty))
+
+    # Quadrant header labels: each is at axes (qx+0.25, qy+0.46)
+    for qkey, (qx, qy) in [("top_left", (0.0, 0.5)), ("top_right", (0.5, 0.5)),
+                             ("bottom_left", (0.0, 0.0)), ("bottom_right", (0.5, 0.0))]:
+        q = quadrants.get(qkey, {})
+        qlabel = q.get("label", "")
+        if qlabel:
+            lx = qx + 0.25
+            ly = qy + 0.46
+            qxd, qyd = ax.transAxes.transform((lx, ly))
+            q_w = len(qlabel) * THEME.FS_H1 * 0.62 * dpi / 72.0
+            q_h = THEME.FS_H1 * 1.4 * dpi / 72.0
+            forbidden_bboxes.append((qxd - q_w / 2, qyd - q_h / 2,
+                                     qxd + q_w / 2, qyd + q_h / 2))
+
+    # Greedy placement: process items in order, accumulate placed_bboxes
+    placed_bboxes: List[Tuple] = []
+    final_offsets: List[Tuple[float, float]] = []
+    for idx, it in enumerate(items):
+        xd, yd = item_display_coords[idx]
+        label = it.get("label", "")
+        off, bbox = _best_label_offset(
+            xd, yd, label, ann_fs, dpi,
+            marker_bboxes, placed_bboxes, forbidden_bboxes, axes_bbox,
+        )
+        placed_bboxes.append(bbox)
+        final_offsets.append(off)
+
+    # ── Draw annotations with greedy offsets ──────────────────────────────────
+    for idx, it in enumerate(items):
+        ix = _to_ax(spread_pts[idx][0])
+        iy = _to_ax(spread_pts[idx][1])
+        label = it.get("label", "")
+        off_x, off_y = final_offsets[idx]
         ha = "left" if off_x >= 0 else "right"
         ax.annotate(
             label,
@@ -226,12 +309,6 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
             arrowprops=dict(arrowstyle="-", color=THEME.BORDER, lw=0.7),
             transform=ax.transAxes, zorder=6,
         )
-
-    if title:
-        fig.text(0.5, 0.99, title, ha="center", va="top",
-                 fontsize=THEME.FS_TITLE, color=THEME.INK, fontweight="bold")
-
-    plt.tight_layout(rect=[0, 0, 1, 0.95 if title else 1.0])
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=THEME.DPI, bbox_inches="tight", facecolor=THEME.BG)
     pdf_path = str(output_path).replace(".png", ".pdf")

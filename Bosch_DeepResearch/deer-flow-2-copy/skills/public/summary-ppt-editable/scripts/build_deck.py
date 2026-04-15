@@ -85,6 +85,7 @@ import render_gantt
 import render_swot
 import render_pie
 import build_pptx as _build_pptx_mod
+import viz_theme as _viz_theme
 
 
 _RENDERERS = {
@@ -220,7 +221,15 @@ def _render_with_retry(
     current_spec = viz_spec
     for attempt in range(1 + max_retries):
         try:
-            msg = renderer(current_spec, out_png)
+            # Temporarily override THEME.BG so all renderers use the requested background
+            _orig_bg = _viz_theme.THEME.BG
+            _fig_bg = current_spec.get("fig_bg")
+            if _fig_bg:
+                _viz_theme.THEME.BG = _fig_bg
+            try:
+                msg = renderer(current_spec, out_png)
+            finally:
+                _viz_theme.THEME.BG = _orig_bg
             print(f"[build_deck] {msg}")
 
             # Tier-2: optional visual inspection

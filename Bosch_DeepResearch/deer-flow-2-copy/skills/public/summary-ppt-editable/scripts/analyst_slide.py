@@ -425,6 +425,9 @@ def _render_panels(
             viz["fig_width"]  = round(render_w, 2)
             viz["fig_height"] = round(render_h, 2)
 
+        # Match chart background to panel card background so there's no white box
+        viz["fig_bg"] = "#fafbfc"
+
         out_png = os.path.join(assets_dir, f"panel_{idx}_{viz_type}.png")
 
         # Use build_deck's retry-with-repair logic

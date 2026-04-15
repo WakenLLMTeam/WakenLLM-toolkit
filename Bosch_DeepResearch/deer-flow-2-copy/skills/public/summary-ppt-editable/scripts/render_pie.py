@@ -182,9 +182,10 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                     s["_color"] = parent_color_map[parent]
 
     # ── Figure ────────────────────────────────────────────────────────────────
+    bg_color = spec.get("fig_bg", THEME.BG)
     fig, ax = plt.subplots(figsize=(fw, fh))
-    fig.patch.set_facecolor("white")
-    ax.set_facecolor("white")
+    fig.patch.set_facecolor(bg_color)
+    ax.set_facecolor(bg_color)
     ax.set_aspect("equal")
 
     outer_radius = 1.0
@@ -329,10 +330,10 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
     plt.tight_layout(rect=[0, 0, 1, 0.95 if title else 1.0])
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(output_path, dpi=dpi, bbox_inches="tight",
-                facecolor="white", edgecolor="none")
+                facecolor=bg_color, edgecolor="none")
     pdf_path = str(output_path).replace(".png", ".pdf")
     fig.savefig(pdf_path, format="pdf", bbox_inches="tight",
-                facecolor="white", edgecolor="none")
+                facecolor=bg_color, edgecolor="none")
     plt.close(fig)
     return f"Pie chart saved: {output_path}"
 

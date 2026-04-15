@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import textwrap
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -35,6 +36,46 @@ import numpy as np
 from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
+
+
+def _wrap_tick_labels(labels: List[str], max_chars: int) -> List[str]:
+    """
+    Wrap tick label text to at most max_chars per line.
+    Splits on spaces first, then on '/', '-', '(' boundaries.
+    E.g. "Advanced Logic (7-14nm)" → "Advanced Logic\n(7-14nm)"
+    """
+    out = []
+    for text in labels:
+        if len(text) <= max_chars:
+            out.append(text)
+            continue
+        # Normalise split points: insert space before '(' so it becomes a word boundary
+        expanded = text.replace("(", " (").replace("/", "/ ").replace("-", "- ")
+        wrapped = textwrap.fill(expanded, width=max_chars,
+                                break_long_words=True, break_on_hyphens=True)
+        out.append(wrapped)
+    return out
+
+
+def _auto_wrap_categories(categories: List[str], fw: float, font_pt: float) -> List[str]:
+    """
+    Decide whether to wrap x-axis category labels and, if so, at what width.
+    Returns the (possibly wrapped) list.
+    Uses the available width per tick (in character units) as the threshold.
+    """
+    n = len(categories)
+    if n == 0:
+        return categories
+    # Available inches per tick ≈ fw / n (rough — ignores margins but good enough)
+    inches_per_tick = fw / n
+    # Characters that fit in that width at the given font size
+    chars_per_tick = int(inches_per_tick * 72 / (font_pt * 0.62))
+    # Cap to sane range: at least 6, at most 20
+    max_chars = max(6, min(chars_per_tick, 20))
+    longest = max(len(c) for c in categories)
+    if longest <= max_chars:
+        return categories           # nothing to do
+    return _wrap_tick_labels(categories, max_chars)
 
 
 def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
@@ -135,8 +176,10 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
         ax.set_yticklabels(categories, fontsize=THEME.FS_SMALL, color=THEME.INK)
         ax.set_xlabel(unit, fontsize=THEME.FS_SMALL, color=THEME.MUTED)
     else:
+        wrapped_cats = _auto_wrap_categories(categories, fw, THEME.FS_SMALL)
         ax.set_xticks(x)
-        ax.set_xticklabels(categories, fontsize=THEME.FS_SMALL, color=THEME.INK)
+        ax.set_xticklabels(wrapped_cats, fontsize=THEME.FS_SMALL, color=THEME.INK,
+                           linespacing=1.2)
         if unit:
             ax.set_ylabel(unit, fontsize=THEME.FS_SMALL, color=THEME.MUTED)
 

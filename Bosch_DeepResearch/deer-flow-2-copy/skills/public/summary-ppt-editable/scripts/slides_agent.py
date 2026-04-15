@@ -386,8 +386,18 @@ def _validate_viz_spec(viz: Dict[str, Any]) -> Optional[str]:
         if not viz.get("stages") or not isinstance(viz["stages"], list) or len(viz["stages"]) == 0:
             return "pipeline requires a non-empty 'stages' list"
     elif vt == "arch":
-        if not viz.get("layers") or not isinstance(viz["layers"], list) or len(viz["layers"]) == 0:
+        layers = viz.get("layers")
+        if not layers or not isinstance(layers, list) or len(layers) == 0:
             return "arch requires a non-empty 'layers' list"
+        for _li, _layer in enumerate(layers):
+            if not isinstance(_layer, dict):
+                return f"arch layer[{_li}] must be an object"
+            _blocks = _layer.get("blocks")
+            if not _blocks or not isinstance(_blocks, list) or len(_blocks) == 0:
+                return (
+                    f"arch layer[{_li}] ('{_layer.get('name', '')}') has no 'blocks'. "
+                    "Each layer must include: {\"blocks\": [{\"label\": \"...\", \"sublabel\": \"...\"}]}"
+                )
     elif vt == "bar_chart":
         if not viz.get("categories") or len(viz["categories"]) == 0:
             return "bar_chart requires non-empty 'categories'"
@@ -569,16 +579,32 @@ def _normalize_viz_spec(viz: Dict[str, Any]) -> Dict[str, Any]:
             (0.75, 0.25),  # bottom-right
         ]
         if items:
-            xs = [float(it.get("x", 0.5)) for it in items]
-            ys = [float(it.get("y", 0.5)) for it in items]
+            # Step 1: normalise x/y to [0,1].
+            # LLM sometimes emits scores on 1-10 or 0-100 scales; detect and rescale.
+            raw_xs = [float(it.get("x", 0.5)) for it in items]
+            raw_ys = [float(it.get("y", 0.5)) for it in items]
+            max_xy = max(max(raw_xs, default=1), max(raw_ys, default=1))
+            if max_xy > 1.05:
+                # Rescale: map [0, max_xy] → [0, 1]
+                scale = max_xy
+                for it, rx, ry in zip(items, raw_xs, raw_ys):
+                    it["x"] = round(max(0.05, min(0.95, rx / scale)), 3)
+                    it["y"] = round(max(0.05, min(0.95, ry / scale)), 3)
+            else:
+                # Clip any out-of-range values
+                for it, rx, ry in zip(items, raw_xs, raw_ys):
+                    it["x"] = round(max(0.05, min(0.95, rx)), 3)
+                    it["y"] = round(max(0.05, min(0.95, ry)), 3)
+
+            # Step 2: if all items clustered near centre → fan to quadrant centres
+            xs = [float(it["x"]) for it in items]
+            ys = [float(it["y"]) for it in items]
             spread = _math.sqrt(
                 sum((x - 0.5) ** 2 + (y - 0.5) ** 2 for x, y in zip(xs, ys)) / len(items)
             )
-            # If all items within 0.15 radius of centre → fan them to quadrant centres
             if spread < 0.15:
                 for i, it in enumerate(items):
                     cx, cy = _QUADRANT_CENTRES[i % 4]
-                    # Add small jitter so multiple items in same quadrant don't stack
                     jitter_x = 0.06 * ((i // 4) % 3 - 1)
                     jitter_y = 0.06 * ((i // 4 + 1) % 3 - 1)
                     it["x"] = min(0.92, max(0.08, cx + jitter_x))
@@ -589,7 +615,15 @@ def _normalize_viz_spec(viz: Dict[str, Any]) -> Dict[str, Any]:
         qs = viz.get("quadrants")
         if isinstance(qs, list):
             _SW_KEYS = ["strengths", "weaknesses", "opportunities", "threats"]
-            viz["quadrants"] = {_SW_KEYS[i]: q for i, q in enumerate(qs) if i < 4}
+            qs = {_SW_KEYS[i]: q for i, q in enumerate(qs) if i < 4}
+            viz["quadrants"] = qs
+        # LLM sometimes returns each quadrant value as a plain list instead of
+        # {"items": [...]} — normalise to the dict form the renderer expects
+        if isinstance(qs, dict):
+            for key in ("strengths", "weaknesses", "opportunities", "threats"):
+                val = qs.get(key)
+                if isinstance(val, list):
+                    qs[key] = {"items": val}
 
     return viz
 

@@ -714,6 +714,13 @@ timeline — REQUIRED: non-empty stages list:
 matrix_2x2 — REQUIRED: non-empty items list with x,y in [0,1]:
   {"type":"matrix_2x2","title":"...","x_label":"X →","y_label":"↑ Y","quadrants":{"top_left":{"label":"A"},"top_right":{"label":"B"},"bottom_left":{"label":"C"},"bottom_right":{"label":"D"}},"items":[{"label":"Item1","x":0.3,"y":0.7},{"label":"Item2","x":0.8,"y":0.6}]}
 
+arch — REQUIRED: layers with non-empty blocks in EVERY layer (no empty blocks arrays):
+  {"type":"arch","title":"...","direction":"BT","layers":[{"name":"Application","color":"#dbeafe","blocks":[{"label":"Path Planner","sublabel":"Behavior · Route","badge":"ASIL-D"},{"label":"AEB","sublabel":"Emergency braking"}]},{"name":"Middleware","color":"#fef9c3","blocks":[{"label":"ROS2","sublabel":"DDS transport"},{"label":"AUTOSAR","sublabel":"COM stack"}]},{"name":"Hardware","color":"#f3e8ff","blocks":[{"label":"SoC","sublabel":"Orin / EyeQ6"},{"label":"MCU","sublabel":"Safety core"}]}]}
+  CRITICAL: every layer object MUST have "blocks" as a non-empty list — never leave "blocks": []
+
+flowchart — REQUIRED: nodes with id+label+shape+color, edges with from+to:
+  {"type":"flowchart","title":"...","layout":"TB","nodes":[{"id":"n1","label":"Input","shape":"rect","color":"#dbeafe"},{"id":"n2","label":"Process","shape":"rect","color":"#dcfce7"},{"id":"n3","label":"Decision","shape":"diamond","color":"#fef9c3"},{"id":"n4","label":"Output","shape":"rounded","color":"#f3e8ff"}],"edges":[{"from":"n1","to":"n2"},{"from":"n2","to":"n3","label":"check"},{"from":"n3","to":"n4","label":"pass"}]}
+
 KEY PRINCIPLE — INFORMATION DENSITY
 Each panel should encode a distinct analytical dimension of the topic:
   • Panel 0 (dominant/wide): macro trend, competitive benchmark, or architecture

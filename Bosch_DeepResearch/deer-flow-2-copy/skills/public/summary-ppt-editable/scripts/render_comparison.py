@@ -29,8 +29,94 @@ _CELL_HI_BG       = "#dde4ea"   # very light Morandi tint for highlighted data c
 _HEADER_FG = THEME.INK
 
 
+# ── CJK-aware text utilities ──────────────────────────────────────────────────
+
+def _visual_width(text: str) -> float:
+    """Visual character width: CJK/fullwidth chars count as 2, ASCII as 1."""
+    w = 0.0
+    for c in text:
+        cp = ord(c)
+        # CJK Unified Ideographs, Katakana, Hiragana, fullwidth punctuation, etc.
+        if (0x1100 <= cp <= 0x11FF or   # Hangul Jamo
+            0x2E80 <= cp <= 0x9FFF or   # CJK & radicals
+            0xA000 <= cp <= 0xA4CF or   # Yi
+            0xAC00 <= cp <= 0xD7AF or   # Hangul
+            0xF900 <= cp <= 0xFAFF or   # CJK Compatibility
+            0xFE30 <= cp <= 0xFE4F or   # CJK Compatibility Forms
+            0xFF00 <= cp <= 0xFFEF):    # Fullwidth / Halfwidth
+            w += 2.0
+        else:
+            w += 1.0
+    return w
+
+
+def _wrap_cell_text(text: str, max_visual_w: float) -> str:
+    """
+    Wrap text so each line's visual width ≤ max_visual_w.
+    Works for both CJK (no spaces) and Latin (space-delimited) text.
+    Returns newline-joined string.
+    """
+    text = (text or "").strip()
+    if not text or _visual_width(text) <= max_visual_w:
+        return text
+
+    lines: List[str] = []
+    line = ""
+    line_w = 0.0
+
+    # First try space-split (works well for Latin / mixed text)
+    tokens = text.split(" ")
+    use_char_split = len(tokens) <= 1 and len(text) > 4
+
+    if not use_char_split:
+        for tok in tokens:
+            tok_w = _visual_width(tok)
+            spacer_w = 1.0 if line else 0.0
+            if line and line_w + spacer_w + tok_w > max_visual_w:
+                lines.append(line)
+                line = tok
+                line_w = tok_w
+            else:
+                line = (line + " " + tok).lstrip() if line else tok
+                line_w += spacer_w + tok_w
+        if line:
+            lines.append(line)
+        # If any line is still too long, split those character-by-character
+        final: List[str] = []
+        for l in lines:
+            if _visual_width(l) <= max_visual_w:
+                final.append(l)
+            else:
+                sub, sub_w = "", 0.0
+                for ch in l:
+                    cw = 2.0 if _visual_width(ch) == 2 else 1.0
+                    if sub_w + cw > max_visual_w:
+                        final.append(sub)
+                        sub, sub_w = ch, cw
+                    else:
+                        sub += ch
+                        sub_w += cw
+                if sub:
+                    final.append(sub)
+        return "\n".join(final)
+    else:
+        # Pure CJK or single long token — split character by character
+        for ch in text:
+            ch_w = 2.0 if _visual_width(ch) >= 2 else 1.0
+            if line_w + ch_w > max_visual_w:
+                lines.append(line)
+                line = ch
+                line_w = ch_w
+            else:
+                line += ch
+                line_w += ch_w
+        if line:
+            lines.append(line)
+        return "\n".join(lines)
+
+
 def _draw_cell(ax, left, bottom, width, height, text, *,
-               bg, fg, bold, fontsize):
+               bg, fg, bold, fontsize, fig_w: float = 10.0):
     """Draw a cell with background fill and word-wrapped centered text."""
     ax.add_patch(plt.Rectangle(
         (left, bottom), width, height,
@@ -39,13 +125,17 @@ def _draw_cell(ax, left, bottom, width, height, text, *,
     if not text:
         return
 
-    # No manual wrapping — rely on the figure being wide enough.
-    # matplotlib clip_on=False lets text breathe; the fig width is
-    # computed from content so each cell has room for its longest text.
+    # Compute how many visual-width units fit in this column
+    col_w_inches   = width * fig_w
+    char_w_inches  = fontsize * 0.58 / 72          # approx width of one ASCII char
+    max_visual_w   = max(4.0, col_w_inches / char_w_inches * 0.88)
+
+    wrapped = _wrap_cell_text(str(text), max_visual_w)
+
     ax.text(
         left + width / 2,
         bottom + height / 2,
-        text,
+        wrapped,
         ha="center", va="center",
         fontsize=fontsize,
         color=fg,
@@ -53,8 +143,8 @@ def _draw_cell(ax, left, bottom, width, height, text, *,
         transform=ax.transAxes,
         zorder=3,
         multialignment="center",
-        linespacing=1.2,
-        clip_on=False,
+        linespacing=1.25,
+        clip_on=True,          # hard clip — nothing escapes the cell
     )
 
 
@@ -76,43 +166,84 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
     show_notes_flag = spec.get("show_notes", True)
     has_notes = show_notes_flag and any(n.strip() for n in row_notes)
 
-    # ── Content-aware column widths ───────────────────────────────────────────
-    # Measure the widest text in each column (header + all cells)
-    # row-header col: max of all row labels
-    row_header_max = max(len(r) for r in rows)
+    # ── Content-aware column widths (CJK-aware) ──────────────────────────────
+    # Use visual width (CJK = 2 units, ASCII = 1 unit) for sizing
+    row_header_max = max(_visual_width(r) for r in rows)
 
-    col_max_chars = []
+    col_max_vw = []
     for ci, col_header in enumerate(cols):
         col_cells = [cells[ri][ci] if ri < len(cells) and ci < len(cells[ri]) else ""
                      for ri in range(nr)]
-        col_max_chars.append(max(len(col_header), max((len(c) for c in col_cells), default=0)))
+        col_max_vw.append(max(
+            _visual_width(col_header),
+            max((_visual_width(c) for c in col_cells), default=0),
+        ))
 
-    # Assign proportional width units: row-header + data cols
-    # Base unit ≈ chars; row header gets its own proportion
-    row_hdr_units = max(8, row_header_max)
-    data_units    = [max(8, m) for m in col_max_chars]
+    # Width units: row header + data cols (cap each column at 28 visual units
+    # to prevent one verbose column from dominating the whole table)
+    _CAP = 28.0
+    row_hdr_units = max(8.0, min(row_header_max, _CAP))
+    data_units    = [max(8.0, min(vw, _CAP)) for vw in col_max_vw]
     if has_notes:
-        data_units.append(12)  # fixed note col width
+        data_units.append(14.0)
 
     all_units = [row_hdr_units] + data_units
     total_units = sum(all_units)
 
-    # Figure width: allocate ~0.13 inches per char-unit, clamp 10–20 inches
-    fw = max(10.0, min(total_units * 0.145, 20.0))
-    # Figure height: adaptive per row count
-    fh = 0.65 + nr * 0.62 + (0.45 if title else 0.1)
-    fh = max(3.0, min(fh, 13.0))
+    # Figure width: ~0.145 in per visual-unit, clamp 10–22 inches
+    fw = float(spec.get("fig_width", 0)) or max(10.0, min(total_units * 0.145, 22.0))
 
     # Adaptive font size: reduce when many rows or many columns
     body_fs = max(THEME.FS_MICRO + 0.5, THEME.FS_BODY - max(0, nr - 5) * 0.4
                                                        - max(0, nc - 2) * 0.3)
     small_fs = max(THEME.FS_MICRO, THEME.FS_SMALL - max(0, nr - 5) * 0.3)
 
-    # Normalised column/row proportions
+    # ── Compute per-cell wrap and dynamic row heights ─────────────────────────
     col_w_units = [float(u) for u in all_units]
-    total_w = sum(col_w_units)
-    row_h_units = [1.1] + [1.0] * nr
-    total_h = sum(row_h_units)
+    total_w     = sum(col_w_units)
+
+    # For each data cell, compute wrapped line count to set row height
+    char_w_inches = body_fs * 0.58 / 72
+    row_line_counts = []   # max wrapped lines per row (for height sizing)
+    wrapped_cells: List[List[str]] = []
+    wrapped_notes: List[str] = []
+
+    for ri, row_label in enumerate(rows):
+        max_lines = 1
+        row_wrapped = []
+        for ci in range(nc):
+            cell_text = (cells[ri][ci] if ri < len(cells) and ci < len(cells[ri]) else "—") or "—"
+            col_w_in  = (col_w_units[ci + 1] / total_w) * fw
+            max_vw    = max(4.0, col_w_in / char_w_inches * 0.85)
+            wt        = _wrap_cell_text(cell_text, max_vw)
+            row_wrapped.append(wt)
+            max_lines = max(max_lines, len(wt.split("\n")))
+        wrapped_cells.append(row_wrapped)
+        # Row label wrap
+        rh_col_in = (col_w_units[0] / total_w) * fw
+        rh_max_vw = max(4.0, rh_col_in / char_w_inches * 0.85)
+        rl_w      = _wrap_cell_text(row_label, rh_max_vw)
+        max_lines = max(max_lines, len(rl_w.split("\n")))
+        # Note wrap (if any)
+        if has_notes:
+            note = (row_notes[ri] if ri < len(row_notes) else "").strip()
+            note_col_in = (col_w_units[nc + 1] / total_w) * fw
+            note_max_vw = max(4.0, note_col_in / (small_fs * 0.58 / 72) * 0.85)
+            note_w = _wrap_cell_text(note, note_max_vw)
+            wrapped_notes.append(note_w)
+            max_lines = max(max_lines, len(note_w.split("\n")))
+        else:
+            wrapped_notes.append("")
+        row_line_counts.append(max_lines)
+
+    # Dynamic row heights: 1.0 unit per line, minimum 1.0
+    row_h_units = [1.1] + [max(1.0, lc * 0.9) for lc in row_line_counts]
+    total_h     = sum(row_h_units)
+
+    # Figure height: scale by total row height units
+    fh = float(spec.get("fig_height", 0)) or max(
+        3.0, min(0.5 + total_h * 0.62 + (0.45 if title else 0.1), 16.0)
+    )
 
     def cx(ci): return sum(col_w_units[:ci]) / total_w
     def cy(ri): return 1.0 - sum(row_h_units[:ri + 1]) / total_h
@@ -126,39 +257,37 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
 
+    def _dc(ci_ax, ri_ax, text, *, bg, fg, bold, fs):
+        _draw_cell(ax, cx(ci_ax), cy(ri_ax), cw(ci_ax), ch(ri_ax),
+                   text, bg=bg, fg=fg, bold=bold, fontsize=fs, fig_w=fw)
+
     # ── Header row ────────────────────────────────────────────────────────────
-    _draw_cell(ax, cx(0), cy(0), cw(0), ch(0),
-               "", bg=_HEADER_BG, fg=_HEADER_FG, bold=True, fontsize=body_fs)
+    _dc(0, 0, "", bg=_HEADER_BG, fg=_HEADER_FG, bold=True, fs=body_fs)
     for ci, col in enumerate(cols):
         bg = _HEADER_BG_HI if ci == highlight_col else _HEADER_BG
-        _draw_cell(ax, cx(ci + 1), cy(0), cw(ci + 1), ch(0),
-                   col, bg=bg, fg=_HEADER_FG, bold=True, fontsize=body_fs)
+        col_w_in  = (col_w_units[ci + 1] / total_w) * fw
+        col_max_vw = max(4.0, col_w_in / char_w_inches * 0.85)
+        col_wrapped = _wrap_cell_text(col, col_max_vw)
+        _dc(ci + 1, 0, col_wrapped, bg=bg, fg=_HEADER_FG, bold=True, fs=body_fs)
     if has_notes:
-        _draw_cell(ax, cx(nc + 1), cy(0), cw(nc + 1), ch(0),
-                   "Note", bg=_HEADER_BG, fg=_HEADER_FG, bold=True,
-                   fontsize=small_fs)
+        _dc(nc + 1, 0, "Note", bg=_HEADER_BG, fg=_HEADER_FG, bold=True, fs=small_fs)
 
-    # ── Data rows ─────────────────────────────────────────────────────────────
+    # ── Data rows (use pre-wrapped text) ──────────────────────────────────────
     for ri, row_label in enumerate(rows):
         row_bg = THEME.ALT_ROW if ri % 2 == 0 else THEME.BG
-        _draw_cell(ax, cx(0), cy(ri + 1), cw(0), ch(ri + 1),
-                   row_label, bg=row_bg, fg=THEME.INK, bold=True,
-                   fontsize=body_fs)
-        row_cells = cells[ri] if ri < len(cells) else []
+        # Row label — wrap it too
+        rh_col_in  = (col_w_units[0] / total_w) * fw
+        rh_max_vw  = max(4.0, rh_col_in / char_w_inches * 0.85)
+        rl_wrapped = _wrap_cell_text(row_label, rh_max_vw)
+        _dc(0, ri + 1, rl_wrapped, bg=row_bg, fg=THEME.INK, bold=True, fs=body_fs)
         for ci in range(nc):
-            cell_text = row_cells[ci] if ci < len(row_cells) else "—"
+            wt = wrapped_cells[ri][ci] if ri < len(wrapped_cells) and ci < len(wrapped_cells[ri]) else "—"
             bg = _CELL_HI_BG if ci == highlight_col else row_bg
-            _draw_cell(ax, cx(ci + 1), cy(ri + 1), cw(ci + 1), ch(ri + 1),
-                       cell_text, bg=bg, fg=THEME.INK,
-                       bold=(ci == highlight_col), fontsize=body_fs)
+            _dc(ci + 1, ri + 1, wt, bg=bg, fg=THEME.INK,
+                bold=(ci == highlight_col), fs=body_fs)
         if has_notes:
-            note = (row_notes[ri] if ri < len(row_notes) else "").strip()
-            # Truncate very long notes to prevent overflow
-            if len(note) > 60:
-                note = note[:57] + "..."
-            _draw_cell(ax, cx(nc + 1), cy(ri + 1), cw(nc + 1), ch(ri + 1),
-                       note, bg=row_bg, fg=THEME.MUTED, bold=False,
-                       fontsize=small_fs)
+            _dc(nc + 1, ri + 1, wrapped_notes[ri], bg=row_bg,
+                fg=THEME.MUTED, bold=False, fs=small_fs)
 
     # ── Grid lines ────────────────────────────────────────────────────────────
     total_cols = nc + 2 if has_notes else nc + 1

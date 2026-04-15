@@ -375,7 +375,7 @@ def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RG
     for line in lines:
         p = text_frame.paragraphs[0] if first else text_frame.add_paragraph()
         first = False
-        p.text = _truncate(line, 60)
+        p.text = "· " + _truncate(line, 58)
         p.level = 0
         p.font.size = Pt(size_pt)
         p.font.color.rgb = body_rgb
@@ -555,7 +555,7 @@ def _add_module_cards(
             for line in bullets:
                 p = btf.paragraphs[0] if first else btf.add_paragraph()
                 first = False
-                p.text = _truncate(line, 55)
+                p.text = "· " + _truncate(line, 53)
                 p.font.size = Pt(size_pt)
                 p.font.color.rgb = body_rgb
                 p.space_after = Pt(3)
@@ -616,8 +616,12 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
     blank = prs.slide_layouts[6]
     slides_in = sorted(plan.get("slides", []), key=lambda s: int(s.get("slide_number", 0)))
 
+    _section_counter = 0  # counts section slides only
+
     for slide in slides_in:
         stype = (slide.get("type") or "content").lower()
+        if stype == "section":
+            _section_counter += 1
         sld = prs.slides.add_slide(blank)
 
         if stype == "title":
@@ -691,13 +695,11 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             top_band.fill.fore_color.rgb = accent
             top_band.line.fill.background()
 
-            # Large faded section number (decorative background)
-            sec_num = slide.get("slide_number")
+            # Large faded section counter (decorative background)
+            # Uses section order (01, 02, 03…) not slide page number
+            sec_num = _section_counter
             if sec_num:
-                try:
-                    num_str = str(int(sec_num)).zfill(2)
-                except (ValueError, TypeError):
-                    num_str = str(sec_num)
+                num_str = str(sec_num).zfill(2)
                 nb = sld.shapes.add_textbox(
                     slide_w - Inches(5.2), Inches(0.5), Inches(5.0), Inches(5.8),
                 )

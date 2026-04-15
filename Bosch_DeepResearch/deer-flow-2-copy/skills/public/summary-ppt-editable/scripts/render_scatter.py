@@ -281,10 +281,41 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
                                                  label=lbl))
     if legend_handles:
         ncol = min(len(legend_handles), 4)
+
+        # ── Smart legend placement ─────────────────────────────────────────────
+        # Estimate legend bbox in display pixels for each candidate corner,
+        # then pick the corner with least overlap with data-point markers.
+        n_rows = _math.ceil(len(legend_handles) / ncol)
+        leg_char_w = max((len(h.get_label()) for h in legend_handles), default=6)
+        leg_w_px = (leg_char_w * THEME.FS_BODY * 0.60 * dpi / 72 + 30) * ncol + 16
+        leg_h_px = n_rows * (THEME.FS_BODY * 1.4 * dpi / 72) + 14
+
+        ax_x0, ax_y0, ax_x1, ax_y1 = axes_bbox
+        pad = 6  # small inset from axes edge
+
+        _leg_candidates = {
+            "upper left":  (ax_x0 + pad,           ax_y1 - leg_h_px - pad,
+                            ax_x0 + pad + leg_w_px, ax_y1 - pad),
+            "upper right": (ax_x1 - leg_w_px - pad, ax_y1 - leg_h_px - pad,
+                            ax_x1 - pad,            ax_y1 - pad),
+            "lower left":  (ax_x0 + pad,           ax_y0 + pad,
+                            ax_x0 + pad + leg_w_px, ax_y0 + pad + leg_h_px),
+            "lower right": (ax_x1 - leg_w_px - pad, ax_y0 + pad,
+                            ax_x1 - pad,            ax_y0 + pad + leg_h_px),
+        }
+
+        best_loc = "upper left"
+        best_score = float("inf")
+        for loc_name, lb in _leg_candidates.items():
+            score = sum(_overlap_area(lb, pb) for pb in marker_bboxes)
+            if score < best_score:
+                best_score = score
+                best_loc = loc_name
+
         ax.legend(handles=legend_handles, fontsize=THEME.FS_BODY,
                   frameon=True, framealpha=0.95, edgecolor=THEME.BORDER,
-                  loc="lower center", bbox_to_anchor=(0.5, -0.18),
-                  ncol=ncol, handlelength=1.2)
+                  loc=best_loc, ncol=ncol, handlelength=1.2,
+                  borderpad=0.6, labelspacing=0.4)
 
     if title:
         fig.text(0.5, 0.98, title, ha="center", va="top",

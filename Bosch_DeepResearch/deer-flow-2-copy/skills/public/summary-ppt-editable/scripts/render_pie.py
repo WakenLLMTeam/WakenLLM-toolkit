@@ -188,6 +188,25 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_aspect("equal")
 
     outer_radius = 1.0
+    actual_outer = ring_width * n_rings   # outermost ring edge (used for axis limits + font sizing)
+    _ax_lim = actual_outer + actual_outer * 0.25 + 0.05
+    _units_to_in = fw / (2 * _ax_lim)    # inches per axes data unit
+
+    # ── Dynamic font sizing based on total slice count ─────────────────────────
+    # More slices → smaller fonts (arc per slice shrinks).
+    _total_slices = sum(len(r.get("slices", [])) for r in rings_spec)
+    if _total_slices <= 3:
+        _min_label_fs, _max_label_fs = 16.0, 26.0
+        _title_fs = THEME.FS_TITLE + 4      # ~18pt
+    elif _total_slices <= 5:
+        _min_label_fs, _max_label_fs = 13.0, 22.0
+        _title_fs = THEME.FS_TITLE + 2      # ~16pt
+    elif _total_slices <= 8:
+        _min_label_fs, _max_label_fs = 10.0, 18.0
+        _title_fs = THEME.FS_TITLE          # ~14pt
+    else:
+        _min_label_fs, _max_label_fs = 8.0,  14.0
+        _title_fs = THEME.FS_H1             # ~12pt
 
     # ── Draw rings from INNER to OUTER (matches original Pie Chart.py approach) ─
     # Inner-most ring has radius = ring_width, outer-most has radius = 1.0.
@@ -227,33 +246,47 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                 counterclock=False,
             )
 
-        # ── Labels (follows original Pie Chart.py approach) ──────────────────
+        # ── Labels ────────────────────────────────────────────────────────────
+        # For a solid single-ring pie, place labels at 62% of radius (not 50%)
+        # so they sit clearly in the middle of each segment.
+        # For donut rings, keep midpoint between inner and outer edges.
+        if n_rings == 1:
+            label_r = r_this * 0.62
+        else:
+            label_r = radius_mid
+
         for w, s, val in zip(wedges, slices, values):
             theta = (w.theta2 + w.theta1) / 2.0
             theta_rad = math.radians(theta)
-            x = radius_mid * math.cos(theta_rad)
-            y = radius_mid * math.sin(theta_rad)
+            x = label_r * math.cos(theta_rad)
+            y = label_r * math.sin(theta_rad)
 
             arc_deg = abs(w.theta2 - w.theta1)
             label_str = _label_text(s["label"], val, total)
             n_chars = max(len(line) for line in label_str.split("\n"))
 
-            # Arc length in "axes units" (radius is in axes-fraction, fw converts to inches)
-            arc_len = math.radians(arc_deg) * radius_mid
-            # Font size formula from Pie Chart.py:
-            #   fs = arc_len / (nchar * 0.4) * 16, clamped [min_fs, max_fs]
-            # For single-ring large slices: min=12, max=22
-            # For narrow donut bands: max constrained by ring height
-            min_fs  = 12.0
-            max_fs  = min(ring_width * fw * 10.0, 22.0)
-            fs = float(np.clip(arc_len / (max(n_chars, 1) * 0.4) * 16, min_fs, max_fs))
+            # Arc length in inches at the label radius
+            arc_in = math.radians(arc_deg) * label_r * _units_to_in
+            # Each char ≈ font_pt * 0.55 / 72 inches wide
+            # Solve: n_chars * pt * 0.55/72 ≤ arc_in  →  pt ≤ arc_in * 72 / (n_chars * 0.55)
+            if n_rings == 1:
+                min_fs = _min_label_fs
+                max_fs = _max_label_fs
+            else:
+                min_fs = max(_min_label_fs - 2, 8.0)
+                max_fs = min(ring_width * fw * 10.0, _max_label_fs)
+            fs_from_arc = arc_in * 72.0 / (max(n_chars, 1) * 0.55)
+            fs = float(np.clip(fs_from_arc, min_fs, max_fs))
 
-            # Rotation: align text with slice tangent (same as original)
-            rot = theta - 90
-            if 90 < rot % 360 < 270:
-                rot += 180
+            # No rotation for solid single-ring pie (easier to read).
+            # For multi-ring donuts, rotate to follow the arc.
+            if n_rings == 1:
+                rot = 0
+            else:
+                rot = theta - 90
+                if 90 < rot % 360 < 270:
+                    rot += 180
 
-            # Large enough arc to show label inside
             if arc_deg > 8:
                 ax.text(x, y, label_str,
                         ha="center", va="center",
@@ -264,7 +297,7 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                         zorder=10)
             else:
                 # Small slice: callout arrow to outside
-                r_out = outer_radius + 0.10
+                r_out = actual_outer + 0.10
                 x_out = r_out * math.cos(theta_rad)
                 y_out = r_out * math.sin(theta_rad)
                 ha_align = "left" if x_out >= 0 else "right"
@@ -274,7 +307,7 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                     xytext=(x_out, y_out),
                     arrowprops=dict(arrowstyle="->", lw=0.7, color="gray"),
                     ha=ha_align, va="center",
-                    fontsize=max(fs, 11.0), fontweight="bold",
+                    fontsize=max(fs, min_fs), fontweight="bold",
                     fontfamily=font,
                     zorder=10,
                 )
@@ -283,15 +316,14 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
     if title:
         fig.text(0.5, 0.97, title,
                  ha="center", va="top",
-                 fontsize=THEME.FS_TITLE + 2, color=THEME.INK,
+                 fontsize=_title_fs, color=THEME.INK,
                  fontweight="bold", fontfamily=font)
 
     # ── Axis limits: fit tightly around the actual drawn radius ───────────────
-    actual_outer = ring_width * n_rings          # outermost ring edge
-    # Leave room for callout arrows and title
+    # actual_outer and _ax_lim already computed above
     margin = actual_outer * 0.25 + 0.05
-    ax.set_xlim(-(actual_outer + margin), actual_outer + margin)
-    ax.set_ylim(-(actual_outer + margin), actual_outer + margin)
+    ax.set_xlim(-_ax_lim, _ax_lim)
+    ax.set_ylim(-_ax_lim, _ax_lim)
     ax.axis("off")
 
     plt.tight_layout(rect=[0, 0, 1, 0.95 if title else 1.0])

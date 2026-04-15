@@ -81,23 +81,31 @@ def _wrap_cell_text(text: str, max_visual_w: float) -> str:
                 line_w += spacer_w + tok_w
         if line:
             lines.append(line)
-        # If any line is still too long, split those character-by-character
+        # If any line is still too long, only char-split CJK tokens —
+        # never break Latin words mid-character (looks bad and unreadable).
         final: List[str] = []
         for l in lines:
             if _visual_width(l) <= max_visual_w:
                 final.append(l)
             else:
-                sub, sub_w = "", 0.0
-                for ch in l:
-                    cw = 2.0 if _visual_width(ch) == 2 else 1.0
-                    if sub_w + cw > max_visual_w:
+                # Check if the overlong line is purely CJK (no spaces, no ASCII words)
+                is_cjk_only = all(ord(c) > 0x2E80 or c in " \t" for c in l)
+                if is_cjk_only:
+                    sub, sub_w = "", 0.0
+                    for ch in l:
+                        cw = 2.0 if ord(ch) > 0x2E80 else 1.0
+                        if sub_w + cw > max_visual_w:
+                            final.append(sub)
+                            sub, sub_w = ch, cw
+                        else:
+                            sub += ch
+                            sub_w += cw
+                    if sub:
                         final.append(sub)
-                        sub, sub_w = ch, cw
-                    else:
-                        sub += ch
-                        sub_w += cw
-                if sub:
-                    final.append(sub)
+                else:
+                    # Latin word(s) wider than column — keep on one line, let it overflow
+                    # slightly rather than breaking the word mid-character.
+                    final.append(l)
         return "\n".join(final)
     else:
         # Pure CJK or single long token — split character by character
@@ -154,17 +162,15 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
     cells: List[List[str]] = spec.get("cells", [])
     title: Optional[str] = spec.get("title")
     highlight_col: Optional[int] = spec.get("highlight_col")
-    row_notes: List[str] = spec.get("row_notes", [""] * len(rows))
     accent = spec.get("accent_color", THEME.ACCENT)
 
     if not rows or not cols or not cells:
         raise ValueError("spec must have non-empty rows, cols, and cells")
 
     nr, nc = len(rows), len(cols)
-    # Only show notes column if there are substantive notes (non-empty, non-whitespace)
-    # AND the user hasn't explicitly disabled it via show_notes: false
-    show_notes_flag = spec.get("show_notes", True)
-    has_notes = show_notes_flag and any(n.strip() for n in row_notes)
+    # Notes column permanently disabled — removed per design decision
+    row_notes: List[str] = [""] * nr
+    has_notes = False
 
     # ── Content-aware column widths (CJK-aware) ──────────────────────────────
     # Use visual width (CJK = 2 units, ASCII = 1 unit) for sizing

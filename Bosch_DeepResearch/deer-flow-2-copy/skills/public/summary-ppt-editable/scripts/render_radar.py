@@ -137,10 +137,13 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
                 fontsize=THEME.FS_BODY, color=THEME.INK,
                 fontweight="bold")
 
-    # ── Ring value labels (on the first spoke) ────────────────────────────────
+    # ── Ring value labels — placed halfway between spoke 0 and spoke 1 ──────────
+    # Placing them on spoke 0 collides with the dimension label; the midpoint
+    # between the first two spokes is always clear.
+    _val_angle = (angles[0] + angles[1]) / 2.0 if n > 1 else angles[0] + 0.15
     for rv in ring_vals:
         ring_norm = (rv - score_min) / (score_max - score_min)
-        ax.text(angles[0], ring_norm + 0.03, str(int(rv)),
+        ax.text(_val_angle, ring_norm + 0.04, str(int(rv)),
                 ha="center", va="bottom",
                 fontsize=THEME.FS_MICRO, color=THEME.MUTED)
 

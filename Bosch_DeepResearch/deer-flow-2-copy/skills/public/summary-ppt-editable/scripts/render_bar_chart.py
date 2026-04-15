@@ -73,7 +73,7 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
     if mode == "stacked":
         bottoms = np.zeros(n_cat)
         for si, ser in enumerate(series):
-            color = ser.get("color", morandi_colors[si % len(morandi_colors)])
+            color = morandi_colors[si % len(morandi_colors)]
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
             if orientation == "horizontal":
                 bars = ax.barh(x, vals, left=bottoms, color=color,
@@ -104,7 +104,7 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
         group_w    = 1.0 - group_gap                        # total bar area per x-unit
         bar_w      = (group_w - bar_gap * (n_ser - 1)) / n_ser  # width of each individual bar
         for si, ser in enumerate(series):
-            color = ser.get("color", morandi_colors[si % len(morandi_colors)])
+            color = morandi_colors[si % len(morandi_colors)]
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
             # offset so the group is centred on x; bars touch each other
             offset = -group_w / 2 + si * (bar_w + bar_gap) + bar_w / 2
@@ -137,8 +137,53 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
             ax.set_ylabel(unit, fontsize=THEME.FS_SMALL, color=THEME.MUTED)
 
     if n_ser > 1:
-        ax.legend(fontsize=THEME.FS_SMALL, frameon=True, framealpha=0.9,
-                  edgecolor=THEME.BORDER, loc="upper left")
+        # ── Smart legend placement: find the corner with most empty space ────
+        # Build per-column height map so we can score each corner.
+        all_vals = [np.array(s.get("values", [0] * n_cat), dtype=float) for s in series]
+        if mode == "stacked":
+            col_heights = np.sum(all_vals, axis=0)
+        else:
+            col_heights = np.max(all_vals, axis=0)
+
+        ylo, yhi = ax.get_ylim()
+        xlo, xhi = ax.get_xlim()
+        y_span = max(yhi - ylo, 1e-9)
+        x_span = max(xhi - xlo, 1e-9)
+
+        if orientation == "vertical":
+            # Vertical bars always start at 0, so lower corners have no free space.
+            # Only compare upper-left vs upper-right (space above tallest bar on each side).
+            mid = max(1, len(col_heights) // 2)
+            left_max  = col_heights[:mid].max()
+            right_max = col_heights[mid:].max()
+            scores = {
+                "upper left":  (yhi - left_max)  / y_span,
+                "upper right": (yhi - right_max) / y_span,
+            }
+        else:  # horizontal bars — left side is category labels, right side is value space
+            x_max_all = col_heights.max()
+            # right side has free space beyond longest bar; left side is occupied by labels
+            scores = {
+                "upper right": (xhi - x_max_all) / x_span,
+                "lower right": (xhi - x_max_all) / x_span,
+            }
+
+        best_loc = max(scores, key=scores.get)
+
+        leg = ax.legend(
+            fontsize=THEME.FS_SMALL,
+            frameon=True,
+            framealpha=0.72,            # semi-transparent background
+            facecolor=THEME.BG,
+            edgecolor=THEME.BORDER,
+            loc=best_loc,
+            borderpad=0.6,
+            labelspacing=0.4,
+            handlelength=1.4,
+            handletextpad=0.5,
+            borderaxespad=0.8,
+        )
+        leg.get_frame().set_linewidth(0.7)
 
     if title:
         fig.text(0.5, 0.98, title, ha="center", va="top",

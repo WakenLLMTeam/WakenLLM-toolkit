@@ -63,6 +63,53 @@ from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 setup_matplotlib()
 
 
+def _visual_width(text: str) -> float:
+    """CJK chars count as 2 visual units, ASCII as 1."""
+    return sum(2.0 if ord(c) > 0x2E80 else 1.0 for c in text)
+
+
+def _wrap_tl_text(text: str, max_vw: float) -> str:
+    """
+    Wrap text so each line's visual width ≤ max_vw.
+    Handles both space-delimited Latin and CJK (no-space) content.
+    """
+    text = (text or "").strip()
+    if not text or _visual_width(text) <= max_vw:
+        return text
+
+    lines: List[str] = []
+    line, line_w = "", 0.0
+
+    # Try space-split first (works for Latin / mixed)
+    tokens = text.split(" ")
+    if len(tokens) > 1:
+        for tok in tokens:
+            tw = _visual_width(tok)
+            sep = 1.0 if line else 0.0
+            if line and line_w + sep + tw > max_vw:
+                lines.append(line)
+                line, line_w = tok, tw
+            else:
+                line = (line + " " + tok).lstrip() if line else tok
+                line_w += sep + tw
+        if line:
+            lines.append(line)
+    else:
+        # Pure CJK / single token — split char by char
+        for ch in text:
+            cw = 2.0 if ord(ch) > 0x2E80 else 1.0
+            if line_w + cw > max_vw:
+                lines.append(line)
+                line, line_w = ch, cw
+            else:
+                line += ch
+                line_w += cw
+        if line:
+            lines.append(line)
+
+    return "\n".join(lines)
+
+
 def _is_dark(hex_color: str) -> bool:
     """Return True if hex color is too dark for light-theme use."""
     h = hex_color.lstrip("#")
@@ -91,12 +138,12 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
 
     # ── Adaptive sizing based on number of stages ─────────────────────────────
     # More stages → wider figure, smaller fonts, no detail text
-    fw = float(spec.get("fig_width", max(THEME.FIG_W, n * 1.9)))
-    fh = float(spec.get("fig_height", THEME.FIG_H))
+    fw = float(spec.get("fig_width", max(THEME.FIG_W, n * 2.2)))
+    fh = float(spec.get("fig_height", max(THEME.FIG_H + 0.5, 4.5)))
     label_fs = max(THEME.FS_MICRO + 0.5, THEME.FS_H2 - max(0, n - 4) * 0.5)
     anno_fs  = max(THEME.FS_MICRO,       THEME.FS_SMALL - max(0, n - 4) * 0.3)
     year_fs  = max(THEME.FS_MICRO,       THEME.FS_SMALL - max(0, n - 4) * 0.3)
-    show_detail = n <= 5  # only show detail text when stages fit comfortably
+    show_detail = n <= 3  # only show detail text when very few stages
     dot_size_outer = max(18, 28 - max(0, n - 4) * 2)
     dot_size_inner = max(14, 22 - max(0, n - 4) * 2)
 
@@ -113,6 +160,15 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
     # ── Spine ─────────────────────────────────────────────────────────────────
     ax.hlines(0.50, xs[0], xs[-1], colors=THEME.BORDER, linewidths=2.5, zorder=1)
     ax.hlines(0.50, xs[0], xs[-1], colors=accent + "22", linewidths=6, zorder=1)
+
+    # Per-stage column width in visual chars — used for text wrapping.
+    # Pills extend ±half-width from the dot center, so we cap at ~0.50× column pitch
+    # to ensure adjacent pills don't collide horizontally.
+    _char_w_in = anno_fs * 0.58 / 72          # approx inches per char at anno_fs
+    _col_w_in  = fw * (xs[-1] - xs[0]) / max(n - 1, 1) if n > 1 else fw
+    _per_stage_vw  = max(6.0, (_col_w_in / _char_w_in) * 0.50)   # annotation (tight)
+    _label_char_in = label_fs * 0.58 / 72
+    _per_stage_lvw = max(8.0, (_col_w_in / _label_char_in) * 0.65)  # label (slightly looser)
 
     for i, (x, stage) in enumerate(zip(xs, stages)):
         active = i in highlight
@@ -144,13 +200,15 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
             ax.vlines(x, 0.50 - tick_len, 0.50 - 0.02, colors=ring_color, linewidths=1.0, zorder=2)
 
         # ── Annotation pill (alternates above/below) ──────────────────────────
-        anno = stage.get("annotation", "")
+        anno_raw = stage.get("annotation", "")
+        anno = _wrap_tl_text(anno_raw, _per_stage_vw) if anno_raw else ""
         if anno:
             pill_y = (0.50 + tick_len + 0.09) if anno_above else (0.50 - tick_len - 0.09)
             pill_bg = morandi_colors[i]
             ax.text(x, pill_y, anno,
                     ha="center", va="center",
                     fontsize=anno_fs, color=THEME.INK, fontweight="bold",
+                    multialignment="center",
                     bbox=dict(boxstyle="round,pad=0.25",
                               facecolor=pill_bg, edgecolor=ring_color,
                               linewidth=0.6, alpha=0.95),
@@ -159,7 +217,8 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
         # ── Stage label (opposite side from annotation) ───────────────────────
         label_side = -1 if anno_above else 1   # below spine if anno is above
         label_y = 0.50 + label_side * (tick_len + 0.21)
-        ax.text(x, label_y, stage.get("label", ""),
+        lbl = _wrap_tl_text(stage.get("label", ""), _per_stage_lvw)
+        ax.text(x, label_y, lbl,
                 ha="center", va="center",
                 fontsize=label_fs, color=THEME.INK,
                 fontweight="bold", zorder=5,

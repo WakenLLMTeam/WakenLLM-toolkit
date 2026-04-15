@@ -817,14 +817,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
             except Exception:
                 pass
 
-            # Short accent underline below section title
-            uline = sld.shapes.add_shape(
-                MSO_SHAPE.RECTANGLE,
-                Inches(0.85), Inches(4.18), Inches(1.6), Inches(0.055),
-            )
-            uline.fill.solid()
-            uline.fill.fore_color.rgb = accent
-            uline.line.fill.background()
+            # (accent underline below section title removed)
         else:
             # content | summary | cards
             title_h = Inches(0.95)

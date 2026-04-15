@@ -59,17 +59,14 @@ def render_waterfall(spec: Dict[str, Any], output_path: str) -> str:
     ax.yaxis.grid(True, color=THEME.BORDER, linewidth=0.5, linestyle="--", alpha=0.6)
     ax.set_axisbelow(True)
 
-    COLOR_POS   = "#A8B89C"   # Morandi sage green (positive)
-    COLOR_NEG   = "#B494A8"   # Morandi dusty rose (negative)
-    COLOR_TOTAL = "#D4C4A8"   # Morandi warm sand (total)
-    COLOR_START = "#AAB7C4"   # Morandi grey-blue (start)
+    from viz_theme import get_categorical_palette
+    BAR_COLOR = get_categorical_palette(1)[0]   # single Morandi color for all bars
 
     x = np.arange(len(items))
     labels = [it.get("label", "") for it in items]
     running = 0.0
     bottoms = []
     heights = []
-    colors = []
 
     for it in items:
         val = float(it.get("value", 0))
@@ -78,17 +75,15 @@ def render_waterfall(spec: Dict[str, Any], output_path: str) -> str:
             bottoms.append(0)
             heights.append(val)
             running = val if kind == "start" else running
-            colors.append(COLOR_START if kind == "start" else COLOR_TOTAL)
         elif val >= 0:
             bottoms.append(running)
             heights.append(val)
             running += val
-            colors.append(COLOR_POS)
         else:
             running += val
             bottoms.append(running)
             heights.append(-val)
-            colors.append(COLOR_NEG)
+    colors = [BAR_COLOR] * len(items)
 
     bars = ax.bar(x, heights, bottom=bottoms, color=colors, width=0.55,
                   edgecolor="white", linewidth=0.5, alpha=0.90)

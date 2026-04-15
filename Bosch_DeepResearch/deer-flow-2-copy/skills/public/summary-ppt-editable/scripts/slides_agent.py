@@ -399,13 +399,41 @@ def _validate_viz_spec(viz: Dict[str, Any]) -> Optional[str]:
                     "Each layer must include: {\"blocks\": [{\"label\": \"...\", \"sublabel\": \"...\"}]}"
                 )
     elif vt == "bar_chart":
-        if not viz.get("categories") or len(viz["categories"]) == 0:
+        _bc_cats = viz.get("categories")
+        if not _bc_cats or not isinstance(_bc_cats, list) or len(_bc_cats) == 0:
             return "bar_chart requires non-empty 'categories'"
         if not viz.get("series") or not isinstance(viz["series"], list) or len(viz["series"]) == 0:
             return "bar_chart requires at least one series"
+        for _si, _ser in enumerate(viz["series"]):
+            _vals = _ser.get("values")
+            if not _vals or not isinstance(_vals, list) or len(_vals) == 0:
+                return (
+                    f"bar_chart series[{_si}] ('{_ser.get('name','')}') has empty 'values'. "
+                    f"Must provide exactly {len(_bc_cats)} numeric values matching categories length."
+                )
+            if len(_vals) != len(_bc_cats):
+                return (
+                    f"bar_chart series[{_si}] has {len(_vals)} values but categories has "
+                    f"{len(_bc_cats)} entries — lengths must match exactly."
+                )
     elif vt == "line_chart":
+        _lc_xlabels = viz.get("x_labels")
+        if not _lc_xlabels or not isinstance(_lc_xlabels, list) or len(_lc_xlabels) == 0:
+            return "line_chart requires a non-empty 'x_labels' list, e.g. [\"2020\",\"2021\",\"2022\",\"2023\",\"2024\"]"
         if not viz.get("series") or not isinstance(viz["series"], list) or len(viz["series"]) == 0:
             return "line_chart requires at least one series"
+        for _si, _ser in enumerate(viz["series"]):
+            _vals = _ser.get("values")
+            if not _vals or not isinstance(_vals, list) or len(_vals) == 0:
+                return (
+                    f"line_chart series[{_si}] ('{_ser.get('name','')}') has empty 'values'. "
+                    f"Must provide exactly {len(_lc_xlabels)} numeric values matching x_labels length."
+                )
+            if len(_vals) != len(_lc_xlabels):
+                return (
+                    f"line_chart series[{_si}] has {len(_vals)} values but x_labels has "
+                    f"{len(_lc_xlabels)} entries — lengths must match exactly."
+                )
     elif vt == "scatter":
         if not viz.get("series") or not isinstance(viz["series"], list) or len(viz["series"]) == 0:
             return "scatter requires at least one series"
@@ -422,11 +450,40 @@ def _validate_viz_spec(viz: Dict[str, Any]) -> Optional[str]:
     elif vt == "funnel":
         if not viz.get("stages") or not isinstance(viz["stages"], list) or len(viz["stages"]) == 0:
             return "funnel requires a non-empty 'stages' list"
+    elif vt == "pie":
+        _rings = viz.get("rings")
+        if not _rings or not isinstance(_rings, list) or len(_rings) == 0:
+            return (
+                "pie requires a non-empty 'rings' list. "
+                "Schema: {\"rings\": [{\"name\": \"x\", \"slices\": [{\"label\": \"A\", \"value\": 50}, {\"label\": \"B\", \"value\": 30}, {\"label\": \"C\", \"value\": 20}]}]}"
+            )
+        for _ri, _ring in enumerate(_rings):
+            _slices = _ring.get("slices")
+            if not _slices or not isinstance(_slices, list) or len(_slices) < 2:
+                return (
+                    f"pie rings[{_ri}] must have at least 2 slices. "
+                    "Each slice: {\"label\": \"Name\", \"value\": <number>}"
+                )
     elif vt == "radar":
-        if not viz.get("dimensions") or len(viz["dimensions"]) < 3:
+        _dims = viz.get("dimensions")
+        if not _dims or not isinstance(_dims, list) or len(_dims) < 3:
             return "radar requires at least 3 'dimensions'"
         if not viz.get("players") or not isinstance(viz["players"], list) or len(viz["players"]) == 0:
             return "radar requires at least one player"
+        _n_dims = len(_dims)
+        for _pi, _pl in enumerate(viz["players"]):
+            _scores = _pl.get("scores")
+            if not _scores or not isinstance(_scores, list) or len(_scores) == 0:
+                return (
+                    f"radar players[{_pi}] ('{_pl.get('name','')}') missing 'scores'. "
+                    f"Must provide exactly {_n_dims} numeric scores matching dimensions. "
+                    "Use key 'scores', not 'values'."
+                )
+            if len(_scores) != _n_dims:
+                return (
+                    f"radar players[{_pi}] has {len(_scores)} scores but dimensions has "
+                    f"{_n_dims} entries — lengths must match exactly."
+                )
     elif vt == "mindmap":
         # mindmap is disabled — treat as unknown so retry picks a different type
         return "mindmap is disabled; use 'tree' for hierarchical content instead"
@@ -635,16 +692,21 @@ You are a senior presentation editor. Review this deck and output ONLY a JSON ar
 
 Do NOT change slide count, ordering, or viz specs — only fix text content.
 
+OUTPUT LANGUAGE RULE: {lang_instruction}
+All text you write in patches (title / bullets / notes) MUST follow this rule.
+Do NOT translate existing text to a different language — keep the same language as the current slide.
+
 Check for these issues:
 1. **Section titles** (type=section): title MUST be a short meaningful PHRASE (5–20 chars), never a single word.
-   Bad: "技术"  "竞争"  "总结"   Good: "核心技术路线解析"  "竞争格局与市场地位"  "战略总结与建议"
-2. **Content titles**: overly generic titles ("概述", "Introduction", "Overview", "Background") must be rewritten to reflect the actual content of that slide.
+   Bad (too short): "Technology"  "Competition"  "Summary"
+   Good: "Core Technology Roadmap"  "Competitive Landscape Analysis"  "Strategic Recommendations"
+2. **Content titles**: overly generic titles ("Overview", "Introduction", "Background", "Analysis") must be rewritten to reflect the actual content of that slide.
 3. **Duplicate bullets**: if two adjacent content slides share 3+ identical or near-identical bullet points, trim the later slide's repeated bullets.
 4. **Narrative arc**: ensure the deck flows logically — background/problem → analysis/data → insight → recommendation/conclusion. Add a note if arc is broken (do NOT reorder slides).
 5. **Speaker notes**: if a slide has no notes and contains complex data or a key argument, add 1-2 sentence speaker notes that explain the "so what".
 
 Output a JSON array of patch objects. Each patch must have exactly these fields:
-  { "slide_number": <int>, "field": "title" | "bullets" | "notes", "value": <string or string-array> }
+  {{ "slide_number": <int>, "field": "title" | "bullets" | "notes", "value": <string or string-array> }}
 
 "title" value  → a plain string
 "bullets" value → an array of strings
@@ -671,6 +733,7 @@ def _run_post_editor(
     deck_title: str,
     backend: str,
     model: str,
+    lang: str = "en",
 ) -> List[Dict[str, Any]]:
     """
     Post-process editorial pass. Calls LLM with the full deck summary and applies
@@ -704,9 +767,11 @@ def _run_post_editor(
         slides_summary=slides_summary,
     )
 
+    lang_instruction = llm_planner._LANG_INSTRUCTIONS.get(lang, llm_planner._LANG_INSTRUCTIONS["en"])
+    system = _POST_EDITOR_SYSTEM.format(lang_instruction=lang_instruction)
     print("[slides_agent] Running post-editor pass…", file=sys.stderr)
     try:
-        raw = llm_planner._call_llm(_POST_EDITOR_SYSTEM, user, backend, model)
+        raw = llm_planner._call_llm(system, user, backend, model)
         patches = llm_planner._extract_json(raw)
     except Exception as exc:
         print(f"[slides_agent] post-editor LLM call failed: {exc}", file=sys.stderr)
@@ -1138,7 +1203,7 @@ def build_slides_pptx(
 
     # ── Post-process editorial pass ──────────────────────────────────────────
     if post_edit:
-        slide_list = _run_post_editor(slide_list, topic, backend, model)
+        slide_list = _run_post_editor(slide_list, topic, backend, model, lang=lang)
 
     # ── Final assembly ───────────────────────────────────────────────────────
     plan: Dict[str, Any] = {

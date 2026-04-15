@@ -736,8 +736,8 @@ SUPPORTED VIZ TYPES (choose the most analytically appropriate for each panel)
 
 MANDATORY COMPLETE SCHEMAS FOR COMPLEX TYPES (copy exactly, fill in your data):
 
-comparison — ALL four keys REQUIRED (rows, cols, cells, highlight_col):
-  {"type":"comparison","title":"...","rows":["row1","row2","row3"],"cols":["ColA","ColB","ColC"],"highlight_col":1,"cells":[["a1","b1","c1"],["a2","b2","c2"],["a3","b3","c3"]],"row_notes":["","",""]  }
+comparison — ALL three keys REQUIRED (rows, cols, cells, highlight_col). Do NOT include row_notes:
+  {"type":"comparison","title":"...","rows":["row1","row2","row3"],"cols":["ColA","ColB","ColC"],"highlight_col":1,"cells":[["a1","b1","c1"],["a2","b2","c2"],["a3","b3","c3"]]}
 
 heatmap — ALL four keys REQUIRED (rows, cols, values, show_values):
   {"type":"heatmap","title":"...","rows":["R1","R2","R3"],"cols":["C1","C2","C3"],"values":[[8,5,3],[6,9,4],[7,2,8]],"color_scheme":"blue","show_values":true}
@@ -754,6 +754,14 @@ matrix_2x2 — REQUIRED: non-empty items list with x,y in [0,1]:
 arch — REQUIRED: layers with non-empty blocks in EVERY layer (no empty blocks arrays):
   {"type":"arch","title":"...","direction":"BT","layers":[{"name":"Application","color":"#dbeafe","blocks":[{"label":"Path Planner","sublabel":"Behavior · Route","badge":"ASIL-D"},{"label":"AEB","sublabel":"Emergency braking"}]},{"name":"Middleware","color":"#fef9c3","blocks":[{"label":"ROS2","sublabel":"DDS transport"},{"label":"AUTOSAR","sublabel":"COM stack"}]},{"name":"Hardware","color":"#f3e8ff","blocks":[{"label":"SoC","sublabel":"Orin / EyeQ6"},{"label":"MCU","sublabel":"Safety core"}]}]}
   CRITICAL: every layer object MUST have "blocks" as a non-empty list — never leave "blocks": []
+
+pie — REQUIRED: rings list with at least one ring, each ring has at least 2 slices. Use "rings", NOT top-level "slices":
+  {"type":"pie","title":"...","rings":[{"name":"market","slices":[{"label":"Segment A","value":45},{"label":"Segment B","value":35},{"label":"Segment C","value":20}]}]}
+  CRITICAL: slices go inside rings[].slices — never put slices at top level
+
+radar — REQUIRED: dimensions (≥3) and players each with "scores" (NOT "values"), length must match dimensions:
+  {"type":"radar","title":"...","dimensions":["D1","D2","D3","D4","D5"],"players":[{"name":"Player A","scores":[8,7,6,9,7]},{"name":"Player B","scores":[6,8,7,5,8]}],"score_range":[0,10]}
+  CRITICAL: use key "scores" (not "values"); len(scores) must equal len(dimensions)
 
 flowchart — REQUIRED: nodes with id+label+shape+color, edges with from+to:
   {"type":"flowchart","title":"...","layout":"TB","nodes":[{"id":"n1","label":"Input","shape":"rect","color":"#dbeafe"},{"id":"n2","label":"Process","shape":"rect","color":"#dcfce7"},{"id":"n3","label":"Decision","shape":"diamond","color":"#fef9c3"},{"id":"n4","label":"Output","shape":"rounded","color":"#f3e8ff"}],"edges":[{"from":"n1","to":"n2"},{"from":"n2","to":"n3","label":"check"},{"from":"n3","to":"n4","label":"pass"}]}

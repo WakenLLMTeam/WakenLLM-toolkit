@@ -130,6 +130,13 @@ def _repair_spec(viz_spec: dict, error_msg: str) -> Optional[dict]:
         "You are a JSON repair assistant. "
         "A visualization spec caused a Python rendering error. "
         "Fix the JSON so it will render without errors. "
+        "Key constraints to always satisfy:\n"
+        "- line_chart: x_labels must be a non-empty list; every series must have 'values' "
+        "  with exactly len(x_labels) numeric entries.\n"
+        "- bar_chart: categories must be non-empty; every series must have 'values' "
+        "  with exactly len(categories) numeric entries.\n"
+        "- comparison/heatmap: rows, cols, and cells/values must all be non-empty and consistent.\n"
+        "- arch: every layer must have a non-empty 'blocks' list.\n"
         "Return ONLY the corrected JSON object — no markdown fences, no commentary."
     )
     user = (

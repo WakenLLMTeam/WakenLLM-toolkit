@@ -386,6 +386,188 @@ def _add_bullets(text_frame, bullets: List[str], *, font_name: str, body_rgb: RG
             pass
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Visual design helpers (styled text boxes)
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _lighten_rgb(rgb: RGBColor, factor: float = 0.82) -> RGBColor:
+    """Blend rgb toward white. factor=1.0 → pure white, 0.0 → unchanged.
+    Works with RGBColor (tuple subclass) using index access."""
+    r, g, b = int(rgb[0]), int(rgb[1]), int(rgb[2])
+    return RGBColor(
+        min(255, int(r + (255 - r) * factor)),
+        min(255, int(g + (255 - g) * factor)),
+        min(255, int(b + (255 - b) * factor)),
+    )
+
+
+def _add_body_region(sld, left, top, width, height, accent_rgb: RGBColor):
+    """Styled text region: left accent bar + surface background + thin border.
+    Returns a text_frame (word_wrap=True, TOP anchor, inner margin set)."""
+    BAR_W   = Inches(0.042)
+    SURFACE = RGBColor(245, 247, 250)
+    BORDER  = RGBColor(218, 224, 234)
+
+    # Thin left accent bar
+    bar = sld.shapes.add_shape(
+        MSO_SHAPE.RECTANGLE,
+        left, top + Inches(0.06), BAR_W, height - Inches(0.12),
+    )
+    bar.fill.solid()
+    bar.fill.fore_color.rgb = accent_rgb
+    bar.line.fill.background()
+
+    # Text box with surface fill (acts as background + border)
+    tb = sld.shapes.add_textbox(
+        left + BAR_W + Inches(0.01), top,
+        width - BAR_W - Inches(0.01), height,
+    )
+    tb.fill.solid()
+    tb.fill.fore_color.rgb = SURFACE
+    tb.line.color.rgb = BORDER
+    tb.line.width = Pt(0.75)
+    tf = tb.text_frame
+    tf.word_wrap = True
+    tf.vertical_anchor = MSO_ANCHOR.TOP
+    tf.margin_left   = Inches(0.14)
+    tf.margin_right  = Inches(0.10)
+    tf.margin_top    = Inches(0.10)
+    tf.margin_bottom = Inches(0.08)
+    return tf
+
+
+def _add_module_cards(
+    sld,
+    left, top, width, height,
+    modules: List[Dict[str, Any]],
+    *,
+    font_name: str,
+    body_rgb: RGBColor,
+    heading_rgb: RGBColor,
+    accent_rgb: RGBColor,
+    heading_pt: int = 14,
+    body_pt: int = 12,
+) -> None:
+    """Render modules as vertically-stacked styled cards with heading pill badges."""
+    valid = [m for m in modules if isinstance(m, dict)]
+    if not valid:
+        return
+    n = len(valid)
+    SURFACE   = RGBColor(245, 247, 250)
+    BORDER    = RGBColor(218, 224, 234)
+    accent_lt = _lighten_rgb(accent_rgb, 0.82)
+    gap    = Inches(0.10)
+    card_h = (height - gap * (n - 1)) / max(n, 1)
+
+    for i, mod in enumerate(valid):
+        cx = left
+        cy = top + i * (card_h + gap)
+        cw = width
+        ch = card_h
+
+        h_text = (mod.get("heading") or "").strip()
+        bullets = [b.strip() for b in (mod.get("bullets") or []) if (b or "").strip()]
+
+        # Card background (rounded rectangle)
+        card_bg = sld.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, cw, ch)
+        card_bg.fill.solid()
+        card_bg.fill.fore_color.rgb = SURFACE
+        card_bg.line.color.rgb = BORDER
+        card_bg.line.width = Pt(0.75)
+        card_bg.adjustments[0] = 0.04
+
+        # Left accent bar
+        bar = sld.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            cx + Inches(0.01), cy + Inches(0.05),
+            Inches(0.038), ch - Inches(0.10),
+        )
+        bar.fill.solid()
+        bar.fill.fore_color.rgb = accent_rgb
+        bar.line.fill.background()
+
+        text_left = cx + Inches(0.12)
+        text_w    = cw - Inches(0.24)
+        text_top  = cy + Inches(0.09)
+
+        # Heading pill badge
+        if h_text:
+            BADGE_H = Inches(0.27)
+            badge_w = min(Inches(3.2), int(text_w * 0.72))
+            badge = sld.shapes.add_shape(
+                MSO_SHAPE.ROUNDED_RECTANGLE,
+                text_left, text_top, badge_w, BADGE_H,
+            )
+            badge.fill.solid()
+            badge.fill.fore_color.rgb = accent_lt
+            badge.line.fill.background()
+            badge.adjustments[0] = 0.50  # fully rounded pill
+
+            htb = sld.shapes.add_textbox(
+                text_left + Inches(0.10), text_top,
+                badge_w - Inches(0.10), BADGE_H,
+            )
+            htf = htb.text_frame
+            hp  = htf.paragraphs[0]
+            hp.text = _truncate(h_text, 28)
+            hp.font.bold = True
+            hp.font.size = Pt(heading_pt)
+            hp.font.color.rgb = heading_rgb
+            try:
+                hp.font.name = font_name
+            except Exception:
+                pass
+            text_top += BADGE_H + Inches(0.06)
+
+        # Bullet lines
+        avail_h = ch - (text_top - cy) - Inches(0.09)
+        if bullets and avail_h > Inches(0.14):
+            btb = sld.shapes.add_textbox(text_left, text_top, text_w, avail_h)
+            btf = btb.text_frame
+            btf.word_wrap = True
+            btf.vertical_anchor = MSO_ANCHOR.TOP
+            first = True
+            for line in bullets:
+                p = btf.paragraphs[0] if first else btf.add_paragraph()
+                first = False
+                p.text = _truncate(line, 50)
+                p.font.size = Pt(body_pt)
+                p.font.color.rgb = body_rgb
+                p.space_after = Pt(4)
+                try:
+                    p.font.name = font_name
+                except Exception:
+                    pass
+
+
+def _render_content_body(
+    sld,
+    left, top, width, height,
+    slide: Dict[str, Any],
+    *,
+    font_name: str,
+    body_rgb: RGBColor,
+    title_rgb: RGBColor,
+    accent_rgb: RGBColor,
+) -> None:
+    """Dispatch slide body to module-cards or styled bullet region."""
+    modules = slide.get("modules")
+    if modules and isinstance(modules, list):
+        _add_module_cards(
+            sld, left, top, width, height, modules,
+            font_name=font_name, body_rgb=body_rgb,
+            heading_rgb=title_rgb, accent_rgb=accent_rgb,
+        )
+        return
+
+    bullets = [(b or "").strip() for b in (slide.get("bullets") or []) if (b or "").strip()]
+    n = max(len(bullets), 1)
+    natural = (float(height) / 914400 * 0.80 * 72) / (n * (1.4 + 8 / 72))
+    size_pt = int(max(13, min(22, natural)))
+    tf = _add_body_region(sld, left, top, width, height, accent_rgb)
+    _add_bullets(tf, bullets, font_name=font_name, body_rgb=body_rgb, size_pt=size_pt)
+
+
 def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
     aspect = plan.get("aspect_ratio", "16:9")
     slide_w, slide_h = _slide_size(aspect)
@@ -414,7 +596,27 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
         sld = prs.slides.add_slide(blank)
 
         if stype == "title":
-            box = sld.shapes.add_textbox(Inches(0.8), Inches(2.4), slide_w - Inches(1.6), Inches(1.2))
+            # ── Bottom accent band ────────────────────────────────────────────
+            band_h = Inches(1.55)
+            band = sld.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                Inches(0), slide_h - band_h, slide_w, band_h,
+            )
+            band.fill.solid()
+            band.fill.fore_color.rgb = accent
+            band.line.fill.background()
+
+            # Small accent dot (top-left decoration)
+            dot = sld.shapes.add_shape(
+                MSO_SHAPE.OVAL,
+                Inches(0.45), Inches(0.38), Inches(0.14), Inches(0.14),
+            )
+            dot.fill.solid()
+            dot.fill.fore_color.rgb = accent
+            dot.line.fill.background()
+
+            # Title (upper 60% of slide)
+            box = sld.shapes.add_textbox(Inches(1.0), Inches(1.5), slide_w - Inches(2.0), Inches(2.2))
             tf = box.text_frame
             tf.word_wrap = True
             p = tf.paragraphs[0]
@@ -427,33 +629,88 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 p.font.name = font_title
             except Exception:
                 pass
+
+            # Central accent divider line below title
+            div = sld.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                int(slide_w * 0.30), Inches(3.72), int(slide_w * 0.40), Inches(0.04),
+            )
+            div.fill.solid()
+            div.fill.fore_color.rgb = accent
+            div.line.fill.background()
+
+            # Subtitle inside accent band (white text)
             sub = slide.get("subtitle") or ""
             if sub:
-                p2 = tf.add_paragraph()
-                p2.text = _truncate(sub, 60)
-                p2.font.size = Pt(22)
-                p2.font.color.rgb = body_rgb
-                p2.alignment = PP_ALIGN.CENTER
+                sub_box = sld.shapes.add_textbox(
+                    Inches(1.0), slide_h - band_h + Inches(0.38),
+                    slide_w - Inches(2.0), Inches(0.88),
+                )
+                stf = sub_box.text_frame
+                stf.word_wrap = True
+                sp = stf.paragraphs[0]
+                sp.text = _truncate(sub, 70)
+                sp.font.size = Pt(18)
+                sp.font.color.rgb = RGBColor(255, 255, 255)
+                sp.alignment = PP_ALIGN.CENTER
                 try:
-                    p2.font.name = font_body
+                    sp.font.name = font_body
                 except Exception:
                     pass
         elif stype == "section":
-            bar = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), Inches(0.25), slide_h)
-            bar.fill.solid()
-            bar.fill.fore_color.rgb = accent
-            bar.line.fill.background()
-            box = sld.shapes.add_textbox(Inches(0.6), Inches(2.8), slide_w - Inches(1.2), Inches(1.0))
+            # ── Full-width top accent band ────────────────────────────────────
+            top_band = sld.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE, Inches(0), Inches(0), slide_w, Inches(0.13),
+            )
+            top_band.fill.solid()
+            top_band.fill.fore_color.rgb = accent
+            top_band.line.fill.background()
+
+            # Large faded section number (decorative background)
+            sec_num = slide.get("slide_number")
+            if sec_num:
+                try:
+                    num_str = str(int(sec_num)).zfill(2)
+                except (ValueError, TypeError):
+                    num_str = str(sec_num)
+                nb = sld.shapes.add_textbox(
+                    slide_w - Inches(5.2), Inches(0.5), Inches(5.0), Inches(5.8),
+                )
+                nbtf = nb.text_frame
+                nbp  = nbtf.paragraphs[0]
+                nbp.text = num_str
+                nbp.font.bold = True
+                nbp.font.size = Pt(220)
+                nbp.font.color.rgb = RGBColor(238, 241, 248)
+                nbp.alignment = PP_ALIGN.RIGHT
+                try:
+                    nbp.font.name = font_title
+                except Exception:
+                    pass
+
+            # Section title (left-aligned, center-vertical)
+            box = sld.shapes.add_textbox(
+                Inches(0.85), Inches(2.55), int(slide_w * 0.68), Inches(1.6),
+            )
             tf = box.text_frame
             p = tf.paragraphs[0]
             p.text = _truncate(slide.get("title", ""), 40)
             p.font.bold = True
-            p.font.size = Pt(32)
+            p.font.size = Pt(34)
             p.font.color.rgb = title_rgb
             try:
                 p.font.name = font_title
             except Exception:
                 pass
+
+            # Short accent underline below section title
+            uline = sld.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                Inches(0.85), Inches(4.18), Inches(1.6), Inches(0.055),
+            )
+            uline.fill.solid()
+            uline.fill.fore_color.rgb = accent
+            uline.line.fill.background()
         else:
             # content | summary | cards
             title_h = Inches(0.95)
@@ -469,6 +726,15 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 pp.font.name = font_title
             except Exception:
                 pass
+
+            # Short accent underline below slide title
+            _uline = sld.shapes.add_shape(
+                MSO_SHAPE.RECTANGLE,
+                Inches(0.55), Inches(1.28), Inches(1.2), Inches(0.04),
+            )
+            _uline.fill.solid()
+            _uline.fill.fore_color.rgb = accent
+            _uline.line.fill.background()
 
             # ── Cards layout ──────────────────────────────────────────────
             cards = slide.get("cards")
@@ -553,11 +819,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 body_h = slide_h - top_body - Inches(0.3)
                 bpt = _bullet_pt(float(body_h) / 914400)
                 if all_bullets[:mid]:
-                    box1 = sld.shapes.add_textbox(left_margin, top_body, col_w, body_h)
-                    bf1 = box1.text_frame
-                    bf1.word_wrap = True
-                    bf1.vertical_anchor = MSO_ANCHOR.TOP
-                    _add_bullets(bf1, all_bullets[:mid], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
+                    tf1 = _add_body_region(sld, left_margin, top_body, col_w, body_h, accent)
+                    _add_bullets(tf1, all_bullets[:mid], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
                 # accent divider
                 div_x = left_margin + col_w + Inches(0.20)
                 div = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, div_x,
@@ -566,11 +829,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 div.fill.fore_color.rgb = accent
                 div.line.fill.background()
                 if all_bullets[mid:]:
-                    box2 = sld.shapes.add_textbox(div_x + Inches(0.25), top_body, col_w, body_h)
-                    bf2 = box2.text_frame
-                    bf2.word_wrap = True
-                    bf2.vertical_anchor = MSO_ANCHOR.TOP
-                    _add_bullets(bf2, all_bullets[mid:], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
+                    tf2 = _add_body_region(sld, div_x + Inches(0.25), top_body, col_w, body_h, accent)
+                    _add_bullets(tf2, all_bullets[mid:], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
 
             # ── hero: viz dominant right (~65%), compact text left (~35%) ─────
             elif layout == "hero" and has_figure and img_path and os.path.isfile(img_path):
@@ -580,12 +840,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 viz_top = Inches(1.15)
                 viz_h = slide_h - viz_top - Inches(0.28)
                 body_h = slide_h - top_body - Inches(0.3)
-                body_box = sld.shapes.add_textbox(left_margin, top_body, txt_w, body_h)
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                bpt = _bullet_pt(float(body_h) / 914400)
-                _add_bullets(bf, slide.get("bullets") or [], font_name=font_body, body_rgb=body_rgb, size_pt=bpt)
+                _render_content_body(sld, left_margin, top_body, txt_w, body_h, slide,
+                                     font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
                 _actual = _add_picture_fit(sld, img_path, viz_x, viz_top, viz_w, viz_h)
                 _caption_box(sld, _actual, fig, font_body, body_rgb)
 
@@ -595,12 +851,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 viz_x = left_margin + txt_w + Inches(0.25)
                 viz_w = slide_w - viz_x - Inches(0.25)
                 body_h = slide_h - top_body - Inches(0.3)
-                body_box = sld.shapes.add_textbox(left_margin, top_body, txt_w, body_h)
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                bpt = _bullet_pt(float(body_h) / 914400)
-                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                _render_content_body(sld, left_margin, top_body, txt_w, body_h, slide,
+                                     font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
                 _actual = _add_picture_fit(sld, img_path, viz_x, Inches(1.15), viz_w, slide_h - Inches(1.45))
                 _caption_box(sld, _actual, fig, font_body, body_rgb)
 
@@ -612,11 +864,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 body_h = slide_h - top_body - Inches(0.3)
                 _actual = _add_picture_fit(sld, img_path, left_margin, Inches(1.15), viz_w, slide_h - Inches(1.45))
                 _caption_box(sld, _actual, fig, font_body, body_rgb)
-                body_box = sld.shapes.add_textbox(txt_x, top_body, txt_w, body_h)
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                _render_content_body(sld, txt_x, top_body, txt_w, body_h, slide,
+                                     font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
 
             # ── default / fallback: existing position-based dispatch ──────────
             # ----- Full-slide: figure spans the entire content area (comparison/flowchart) -----
@@ -727,11 +976,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                         pass
 
                 if body_h > Inches(0.05):
-                    body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, body_h)
-                    bf = body_box.text_frame
-                    bf.word_wrap = True
-                    bf.vertical_anchor = MSO_ANCHOR.TOP
-                    _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                    _render_content_body(sld, left_margin, top_body, full_text_w, body_h, slide,
+                                         font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
 
                 pic_w = full_text_w
                 pic_left = left_margin
@@ -770,11 +1016,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 pic_top = Inches(1.25)
                 pic_w = Inches(4.75)
                 pic_h = Inches(4.85)
-                body_box = sld.shapes.add_textbox(left_margin, top_body, text_w, slide_h - Inches(1.65))
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                _render_content_body(sld, left_margin, top_body, text_w, slide_h - Inches(1.65), slide,
+                                     font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
                 _actual_r = _add_picture_fit(sld, img_path, pic_left, pic_top, pic_w, pic_h)
                 cap = fig.get("caption")
                 if cap:
@@ -792,11 +1035,8 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                 ph_top = Inches(1.25)
                 ph_w = Inches(4.75)
                 ph_h = Inches(4.85)
-                body_box = sld.shapes.add_textbox(left_margin, top_body, text_w, slide_h - Inches(1.65))
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                _render_content_body(sld, left_margin, top_body, text_w, slide_h - Inches(1.65), slide,
+                                     font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
                 ph = sld.shapes.add_shape(MSO_SHAPE.RECTANGLE, ph_left, ph_top, ph_w, ph_h)
                 ph.fill.background()
                 ph.line.color.rgb = accent
@@ -818,11 +1058,34 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                     cp.font.color.rgb = body_rgb
                     cp.alignment = PP_ALIGN.CENTER
             else:
-                body_box = sld.shapes.add_textbox(left_margin, top_body, full_text_w, slide_h - Inches(1.65))
-                bf = body_box.text_frame
-                bf.word_wrap = True
-                bf.vertical_anchor = MSO_ANCHOR.TOP
-                _render_slide_body(bf, slide, font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb)
+                _render_content_body(sld, left_margin, top_body, full_text_w, slide_h - Inches(1.65), slide,
+                                     font_name=font_body, body_rgb=body_rgb, title_rgb=title_rgb, accent_rgb=accent)
+
+        # ── Slide footer: separator line + page number (all non-title slides) ──
+        if stype != "title":
+            _sl_num = slide.get("slide_number", "")
+            if _sl_num:
+                _sep = sld.shapes.add_shape(
+                    MSO_SHAPE.RECTANGLE,
+                    Inches(0.55), slide_h - Inches(0.26),
+                    slide_w - Inches(1.1), Inches(0.007),
+                )
+                _sep.fill.solid()
+                _sep.fill.fore_color.rgb = RGBColor(210, 215, 225)
+                _sep.line.fill.background()
+                _fn = sld.shapes.add_textbox(
+                    slide_w - Inches(0.75), slide_h - Inches(0.24),
+                    Inches(0.55), Inches(0.20),
+                )
+                _fnp = _fn.text_frame.paragraphs[0]
+                _fnp.text = str(_sl_num)
+                _fnp.font.size = Pt(9)
+                _fnp.font.color.rgb = RGBColor(152, 160, 178)
+                _fnp.alignment = PP_ALIGN.RIGHT
+                try:
+                    _fnp.font.name = font_body
+                except Exception:
+                    pass
 
         notes = slide.get("notes")
         if notes:

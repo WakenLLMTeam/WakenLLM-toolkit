@@ -211,7 +211,7 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
                     multialignment="center",
                     bbox=dict(boxstyle="round,pad=0.25",
                               facecolor=pill_bg, edgecolor=ring_color,
-                              linewidth=0.6, alpha=0.95),
+                              linewidth=0.6, alpha=0.35),
                     zorder=6)
 
         # ── Stage label (opposite side from annotation) ───────────────────────
@@ -222,7 +222,8 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
                 ha="center", va="center",
                 fontsize=label_fs, color=THEME.INK,
                 fontweight="bold", zorder=5,
-                multialignment="center")
+                multialignment="center",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
         # ── Year badge ────────────────────────────────────────────────────────
         year = stage.get("year", "")
@@ -262,7 +263,8 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
                         style="italic",
                         multialignment="center",
                         linespacing=1.15,
-                        zorder=5)
+                        zorder=5,
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     # ── Arrows between dots ───────────────────────────────────────────────────
     for i in range(n - 1):

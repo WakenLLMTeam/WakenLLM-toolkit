@@ -222,7 +222,7 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
             textcoords="offset points",
             fontsize=ann_fs, color=THEME.INK, fontweight="bold",
             ha=ha, va="center",
-            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="none", alpha=0.85),
+            bbox=dict(boxstyle="round,pad=0.25", fc=THEME.BG, ec="none", alpha=0.35),
             arrowprops=dict(arrowstyle="-", color=THEME.BORDER, lw=0.7),
             transform=ax.transAxes, zorder=6,
         )

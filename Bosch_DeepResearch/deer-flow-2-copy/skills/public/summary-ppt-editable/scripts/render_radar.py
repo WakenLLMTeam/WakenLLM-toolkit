@@ -135,7 +135,8 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
         ax.text(angle, label_pad, dim,
                 ha=ha, va="center",
                 fontsize=THEME.FS_BODY, color=THEME.INK,
-                fontweight="bold")
+                fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     # ── Ring value labels — placed halfway between spoke 0 and spoke 1 ──────────
     # Placing them on spoke 0 collides with the dimension label; the midpoint
@@ -145,7 +146,8 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
         ring_norm = (rv - score_min) / (score_max - score_min)
         ax.text(_val_angle, ring_norm + 0.04, str(int(rv)),
                 ha="center", va="bottom",
-                fontsize=THEME.FS_MICRO, color=THEME.MUTED)
+                fontsize=THEME.FS_MICRO, color=THEME.MUTED,
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     # ── Remove default polar decorations ─────────────────────────────────────
     ax.set_xticks([])

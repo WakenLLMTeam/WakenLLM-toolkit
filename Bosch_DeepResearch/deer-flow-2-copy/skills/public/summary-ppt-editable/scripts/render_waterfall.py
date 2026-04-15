@@ -103,7 +103,8 @@ def render_waterfall(spec: Dict[str, Any], output_path: str) -> str:
         ax.text(bar.get_x() + bar.get_width() / 2, label_y,
                 f"{val:+g}{unit}" if it.get("type") not in ("start", "total") else f"{val:g}{unit}",
                 ha="center", va="bottom",
-                fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold")
+                fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     ax.set_xticks(x)
     ax.set_xticklabels(labels, fontsize=THEME.FS_SMALL, color=THEME.INK)

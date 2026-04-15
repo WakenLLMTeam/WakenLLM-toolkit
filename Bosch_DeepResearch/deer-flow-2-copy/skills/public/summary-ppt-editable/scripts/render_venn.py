@@ -87,7 +87,8 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
         ly = cy + (R + 0.22) * math.sin(label_angle)
         ax.text(lx, ly, circle.get("label", ""),
                 ha="center", va="center",
-                fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold")
+                fontsize=THEME.FS_BODY, color=THEME.INK, fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
         # Items: in the exclusive region of each circle.
         # Anchor at 55% radius outward from circle center; stack vertically.
@@ -100,7 +101,8 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
         for ii, item in enumerate(items[:3]):
             ax.text(ic_x, top_y - ii * line_h, f"· {item}",
                     ha="center", va="center",
-                    fontsize=THEME.FS_SMALL, color=THEME.INK)
+                    fontsize=THEME.FS_SMALL, color=THEME.INK,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     # Overlap label positions.
     # For 2-circle overlaps: midpoint of the two centers, then nudge AWAY
@@ -137,7 +139,8 @@ def render_venn(spec: Dict[str, Any], output_path: str) -> str:
                     ha="center", va="center",
                     fontsize=THEME.FS_MICRO + 0.5, color=THEME.INK,
                     fontweight="bold", multialignment="center",
-                    zorder=5)
+                    zorder=5,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

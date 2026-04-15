@@ -121,12 +121,14 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
                     if orientation == "horizontal":
                         ax.text(bar.get_width() + max(vals) * 0.01, bar.get_y() + bar.get_height() / 2,
                                 f"{val:g}{unit}", va="center", ha="left",
-                                fontsize=THEME.FS_MICRO, color=THEME.INK)
+                                fontsize=THEME.FS_MICRO, color=THEME.INK,
+                                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
                     else:
                         ax.text(bar.get_x() + bar.get_width() / 2,
                                 bar.get_height() + max(vals) * 0.01,
                                 f"{val:g}{unit}", ha="center", va="bottom",
-                                fontsize=THEME.FS_MICRO, color=THEME.INK)
+                                fontsize=THEME.FS_MICRO, color=THEME.INK,
+                                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     if orientation == "horizontal":
         ax.set_yticks(x)

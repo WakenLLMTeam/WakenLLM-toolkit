@@ -98,12 +98,14 @@ def render_onion(spec: Dict[str, Any], output_path: str) -> str:
         ax.text(lx, ly_label, label,
                 ha="center", va="center",
                 fontsize=THEME.FS_SMALL, color=THEME.INK,
-                fontweight="bold", zorder=n + 10)
+                fontweight="bold", zorder=n + 10,
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
         if desc:
             ax.text(lx, ly_desc, desc,
                     ha="center", va="center",
                     fontsize=THEME.FS_MICRO, color=THEME.MUTED,
-                    fontweight="normal", zorder=n + 10)
+                    fontweight="normal", zorder=n + 10,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

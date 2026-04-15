@@ -92,7 +92,8 @@ def render_funnel(spec: Dict[str, Any], output_path: str) -> str:
                 stage.get("label", ""),
                 ha="right", va="center",
                 fontsize=THEME.FS_SMALL, color=THEME.INK, fontweight="bold",
-                transform=ax.transAxes)
+                transform=ax.transAxes,
+                bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
         # Value (inside bar)
         ax.text(0.5, by + bar_h / 2,
@@ -111,7 +112,8 @@ def render_funnel(spec: Dict[str, Any], output_path: str) -> str:
                     f"↓ {pct:.0f}%",
                     ha="left", va="center",
                     fontsize=THEME.FS_MICRO, color=THEME.MUTED, style="italic",
-                    transform=ax.transAxes)
+                    transform=ax.transAxes,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     if title:
         fig.text(0.5, 0.98, title, ha="center", va="top",

@@ -314,6 +314,7 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
                     fontsize=max(fs, min_fs), fontweight="bold",
                     fontfamily=font,
                     zorder=10,
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=bg_color, alpha=0.35, edgecolor="none"),
                 )
 
     # ── Title ─────────────────────────────────────────────────────────────────

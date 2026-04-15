@@ -104,7 +104,8 @@ def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
                         xy=(x[-1], vals[-1]),
                         xytext=(6, 0), textcoords="offset points",
                         va="center", ha="left",
-                        fontsize=THEME.FS_SMALL, color=color, fontweight="bold")
+                        fontsize=THEME.FS_SMALL, color=color, fontweight="bold",
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     # Extend x-axis right margin so end-of-line annotations don't get clipped
     if series:

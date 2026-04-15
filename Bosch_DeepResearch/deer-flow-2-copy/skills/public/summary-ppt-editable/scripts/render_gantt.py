@@ -116,7 +116,8 @@ def render_gantt(spec: Dict[str, Any], output_path: str) -> str:
                     zorder=5)
             ax.text(start, y + 0.35, task.get("label", ""),
                     ha="center", va="bottom",
-                    fontsize=THEME.FS_MICRO, color=THEME.INK, fontweight="bold")
+                    fontsize=THEME.FS_MICRO, color=THEME.INK, fontweight="bold",
+                    bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
         else:
             width = end - start + 0.8
             bar = mpatches.FancyBboxPatch(
@@ -138,7 +139,8 @@ def render_gantt(spec: Dict[str, Any], output_path: str) -> str:
                         g.get("label", ""),
                         ha="left", va="center",
                         fontsize=THEME.FS_MICRO, color=THEME.MUTED,
-                        style="italic")
+                        style="italic",
+                        bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
     if title:
         fig.text(0.5, 0.99, title, ha="center", va="top",

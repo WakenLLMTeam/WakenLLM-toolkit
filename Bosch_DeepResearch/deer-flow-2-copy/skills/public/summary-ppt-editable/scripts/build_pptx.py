@@ -445,10 +445,14 @@ def _add_module_cards(
     body_rgb: RGBColor,
     heading_rgb: RGBColor,
     accent_rgb: RGBColor,
-    heading_pt: int = 14,
+    heading_pt: int = 13,
     body_pt: int = 12,
 ) -> None:
-    """Render modules as vertically-stacked styled cards with heading pill badges."""
+    """Render modules as horizontal rows: [pill badge LEFT] | [bullet text RIGHT].
+
+    Each row:
+      [accent bar] [heading badge centred vertically] | [divider] [bullet lines]
+    """
     valid = [m for m in modules if isinstance(m, dict)]
     if not valid:
         return
@@ -456,73 +460,94 @@ def _add_module_cards(
     SURFACE   = RGBColor(245, 247, 250)
     BORDER    = RGBColor(218, 224, 234)
     accent_lt = _lighten_rgb(accent_rgb, 0.82)
-    gap    = Inches(0.10)
-    card_h = (height - gap * (n - 1)) / max(n, 1)
+
+    gap   = Inches(0.08)
+    row_h = (height - gap * (n - 1)) / max(n, 1)
+
+    BAR_W     = Inches(0.038)
+    LEFT_W    = int(width * 0.28)       # badge column width
+    DIV_W     = Inches(0.007)
+    RIGHT_OFF = LEFT_W + Inches(0.10)   # right text column start offset from `left`
+    RIGHT_W   = width - RIGHT_OFF - Inches(0.05)
 
     for i, mod in enumerate(valid):
-        cx = left
-        cy = top + i * (card_h + gap)
-        cw = width
-        ch = card_h
+        rx = left
+        ry = top + i * (row_h + gap)
+        rh = row_h
 
-        h_text = (mod.get("heading") or "").strip()
+        h_text  = (mod.get("heading") or "").strip()
         bullets = [b.strip() for b in (mod.get("bullets") or []) if (b or "").strip()]
 
-        # Card background (rounded rectangle)
-        card_bg = sld.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, cx, cy, cw, ch)
-        card_bg.fill.solid()
-        card_bg.fill.fore_color.rgb = SURFACE
-        card_bg.line.color.rgb = BORDER
-        card_bg.line.width = Pt(0.75)
-        card_bg.adjustments[0] = 0.04
+        # ── Row background ────────────────────────────────────────────────────
+        row_bg = sld.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, rx, ry, width, rh)
+        row_bg.fill.solid()
+        row_bg.fill.fore_color.rgb = SURFACE
+        row_bg.line.color.rgb = BORDER
+        row_bg.line.width = Pt(0.75)
+        row_bg.adjustments[0] = 0.04
 
         # Left accent bar
         bar = sld.shapes.add_shape(
             MSO_SHAPE.RECTANGLE,
-            cx + Inches(0.01), cy + Inches(0.05),
-            Inches(0.038), ch - Inches(0.10),
+            rx + Inches(0.01), ry + Inches(0.05),
+            BAR_W, rh - Inches(0.10),
         )
         bar.fill.solid()
         bar.fill.fore_color.rgb = accent_rgb
         bar.line.fill.background()
 
-        text_left = cx + Inches(0.12)
-        text_w    = cw - Inches(0.24)
-        text_top  = cy + Inches(0.09)
-
-        # Heading pill badge
+        # ── Heading pill badge (left column, vertically centred) ──────────────
         if h_text:
-            BADGE_H = Inches(0.27)
-            badge_w = min(Inches(3.2), int(text_w * 0.72))
+            BADGE_H   = Inches(0.30)
+            badge_top = ry + (rh - BADGE_H) / 2
+            badge_lx  = rx + BAR_W + Inches(0.06)
+            badge_w   = LEFT_W - BAR_W - Inches(0.10)
+
             badge = sld.shapes.add_shape(
                 MSO_SHAPE.ROUNDED_RECTANGLE,
-                text_left, text_top, badge_w, BADGE_H,
+                badge_lx, badge_top, badge_w, BADGE_H,
             )
             badge.fill.solid()
             badge.fill.fore_color.rgb = accent_lt
             badge.line.fill.background()
-            badge.adjustments[0] = 0.50  # fully rounded pill
+            badge.adjustments[0] = 0.50  # full pill
 
             htb = sld.shapes.add_textbox(
-                text_left + Inches(0.10), text_top,
-                badge_w - Inches(0.10), BADGE_H,
+                badge_lx + Inches(0.06), badge_top,
+                badge_w - Inches(0.06), BADGE_H,
             )
             htf = htb.text_frame
+            htf.vertical_anchor = MSO_ANCHOR.MIDDLE
             hp  = htf.paragraphs[0]
-            hp.text = _truncate(h_text, 28)
+            hp.text = _truncate(h_text, 18)
             hp.font.bold = True
             hp.font.size = Pt(heading_pt)
             hp.font.color.rgb = heading_rgb
+            hp.alignment = PP_ALIGN.CENTER
             try:
                 hp.font.name = font_name
             except Exception:
                 pass
-            text_top += BADGE_H + Inches(0.06)
 
-        # Bullet lines
-        avail_h = ch - (text_top - cy) - Inches(0.09)
-        if bullets and avail_h > Inches(0.14):
-            btb = sld.shapes.add_textbox(text_left, text_top, text_w, avail_h)
+        # ── Thin vertical divider ─────────────────────────────────────────────
+        div = sld.shapes.add_shape(
+            MSO_SHAPE.RECTANGLE,
+            rx + LEFT_W, ry + Inches(0.08),
+            DIV_W, rh - Inches(0.16),
+        )
+        div.fill.solid()
+        div.fill.fore_color.rgb = BORDER
+        div.line.fill.background()
+
+        # ── Bullet text (right column) ────────────────────────────────────────
+        txt_top = ry + Inches(0.09)
+        txt_h   = rh - Inches(0.18)
+        if txt_h > Inches(0.12):
+            n_b = max(len(bullets), 1)
+            natural_pt = float(txt_h) / 914400 * 0.78 * 72 / (n_b * 1.45)
+            size_pt = int(max(10, min(body_pt, natural_pt)))
+
+            btb = sld.shapes.add_textbox(rx + RIGHT_OFF, txt_top, RIGHT_W, txt_h)
             btf = btb.text_frame
             btf.word_wrap = True
             btf.vertical_anchor = MSO_ANCHOR.TOP
@@ -530,10 +555,10 @@ def _add_module_cards(
             for line in bullets:
                 p = btf.paragraphs[0] if first else btf.add_paragraph()
                 first = False
-                p.text = _truncate(line, 50)
-                p.font.size = Pt(body_pt)
+                p.text = _truncate(line, 55)
+                p.font.size = Pt(size_pt)
                 p.font.color.rgb = body_rgb
-                p.space_after = Pt(4)
+                p.space_after = Pt(3)
                 try:
                     p.font.name = font_name
                 except Exception:
@@ -946,10 +971,25 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
                     fig_top = top_body
                     fig_h = avail_h
                 else:
-                    # Compute natural body height (~0.26in/line), max 35% of avail
-                    natural_body = 0.25 + _content_lines * 0.26
-                    max_body = float(avail_h) / 914400 * 0.35  # 35% of available
-                    body_h = Inches(max(0.55, min(max_body, natural_body)))
+                    avail_in = float(avail_h) / 914400
+
+                    if slide.get("modules") and isinstance(slide.get("modules"), list):
+                        # Horizontal row layout: each row height = max(badge_h, bullets_h) + pad
+                        # badge = 0.30in, bullets ≈ n*0.26in, row pad = 0.18in
+                        valid_m = [m for m in slide["modules"] if isinstance(m, dict)]
+                        n_m = max(len(valid_m), 1)
+                        max_b = max(
+                            (len([b for b in (m.get("bullets") or []) if (b or "").strip()]) for m in valid_m),
+                            default=0,
+                        )
+                        row_min_h = max(0.30, max(1, max_b) * 0.26) + 0.18
+                        natural_body = n_m * row_min_h + (n_m - 1) * 0.08
+                        max_body_in = avail_in * 0.50
+                    else:
+                        natural_body = 0.25 + _content_lines * 0.26
+                        max_body_in = avail_in * 0.35
+
+                    body_h = Inches(max(0.55, min(max_body_in, natural_body)))
                     fig_top = top_body + body_h + gap
                     fig_h = slide_h - fig_top - cap_h - Inches(0.08)
                     fig_h = max(fig_h, Inches(1.5))

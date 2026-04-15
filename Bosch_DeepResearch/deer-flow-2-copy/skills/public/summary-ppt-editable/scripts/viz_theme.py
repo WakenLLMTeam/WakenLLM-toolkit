@@ -34,7 +34,7 @@ def setup_matplotlib() -> None:
     """Call once before any rendering to set global font defaults."""
     matplotlib.rcParams["font.family"] = ["Comic Sans MS", CJK_FONT, "DejaVu Sans", "sans-serif"]
     matplotlib.rcParams["axes.unicode_minus"] = False
-    matplotlib.rcParams["figure.dpi"] = 150
+    matplotlib.rcParams["figure.dpi"] = 300
     # Bold everything by default
     matplotlib.rcParams["font.weight"] = "bold"
     matplotlib.rcParams["axes.labelweight"] = "bold"

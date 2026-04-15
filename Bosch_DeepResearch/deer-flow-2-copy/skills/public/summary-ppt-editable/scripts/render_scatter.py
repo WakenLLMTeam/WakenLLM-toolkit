@@ -285,21 +285,31 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
         )
 
     # ── Legend ─────────────────────────────────────────────────────────────────
+    # Points that already have an on-chart annotation don't need a legend entry
+    # (the label next to the dot is enough). Only unlabelled points are added to
+    # the legend, grouped by their series name.
+    annotated_labels: set = {rec["label"] for rec in point_records if rec["label"]}
+
     legend_handles = []
-    seen: set = set()
+    seen_legend: set = set()
     leg_counters = [0] * n_series
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
-            lbl = pt.get("label", "") or ser.get("name", "")
-            color = _scatter_color(si, leg_counters[si])
+            pt_lbl = pt.get("label", "")
+            color  = _scatter_color(si, leg_counters[si])
             leg_counters[si] += 1
-            size = pt.get("size", 150)
-            if lbl and lbl not in seen:
-                seen.add(lbl)
+            size   = pt.get("size", 150)
+            # Skip if this point has an on-chart annotation — no need to repeat
+            if pt_lbl in annotated_labels:
+                continue
+            # Use series name as the legend label for unlabelled points
+            legend_lbl = ser.get("name", "")
+            if legend_lbl and legend_lbl not in seen_legend:
+                seen_legend.add(legend_lbl)
                 ms = max(7, min(14, (size ** 0.5) / 2))
                 legend_handles.append(plt.Line2D([0], [0], marker="o", color="w",
                                                  markerfacecolor=color, markersize=ms,
-                                                 label=lbl))
+                                                 label=legend_lbl))
     if legend_handles:
         ncol = min(len(legend_handles), 3)
         ax.legend(handles=legend_handles, fontsize=THEME.FS_BODY,

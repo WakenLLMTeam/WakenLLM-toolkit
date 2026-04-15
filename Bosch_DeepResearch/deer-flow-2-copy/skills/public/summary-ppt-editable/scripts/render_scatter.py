@@ -44,6 +44,20 @@ from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
+# High-contrast palette for scatter — Morandi is too muted for distinguishing points
+_SCATTER_PALETTE = [
+    "#E20015",  # red
+    "#2563eb",  # blue
+    "#16a34a",  # green
+    "#f97316",  # orange
+    "#9333ea",  # purple
+    "#06b6d4",  # cyan
+    "#eab308",  # amber
+    "#ec4899",  # pink
+    "#14b8a6",  # teal
+    "#f43f5e",  # rose
+]
+
 
 def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     title: Optional[str] = spec.get("title")
@@ -70,18 +84,23 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_axisbelow(True)
 
     all_x, all_y = [], []
-    morandi_colors = get_categorical_palette(len(series))
-    # Collect actual point colors for legend (use first point per series)
+    # Scatter uses high-contrast palette (not Morandi) so points are clearly distinguishable.
+    # Per-point or per-series colors from spec take priority; palette is the fallback.
+    def _scatter_color(si: int, pt: dict) -> str:
+        return (pt.get("color")
+                or series[si].get("color")
+                or _SCATTER_PALETTE[si % len(_SCATTER_PALETTE)])
+
+    # Collect per-series representative color for legend
     series_colors = []
     for si, ser in enumerate(series):
         pts = ser.get("points", [])
-        c = pts[0].get("color", morandi_colors[si % len(morandi_colors)]) if pts else morandi_colors[si % len(morandi_colors)]
-        series_colors.append(c)
+        series_colors.append(_scatter_color(si, pts[0]) if pts else _SCATTER_PALETTE[si % len(_SCATTER_PALETTE)])
 
     import math as _math
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
-            color = pt.get("color", morandi_colors[si % len(morandi_colors)])
+            color = _scatter_color(si, pt)
             size  = pt.get("size", 150)
             x, y  = pt.get("x", 0), pt.get("y", 0)
             all_x.append(x)
@@ -123,7 +142,7 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
             lbl = pt.get("label", "") or ser.get("name", "")
-            color = pt.get("color", series_colors[si])
+            color = _scatter_color(si, pt)
             size = pt.get("size", 150)
             if lbl and lbl not in seen:
                 seen.add(lbl)

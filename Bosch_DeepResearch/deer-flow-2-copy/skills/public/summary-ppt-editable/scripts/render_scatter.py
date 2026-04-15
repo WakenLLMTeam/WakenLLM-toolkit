@@ -258,63 +258,32 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
         r_px = (_math.sqrt(rec["size"]) / 2.0) * dpi / 72.0
         marker_bboxes.append((xd - r_px, yd - r_px, xd + r_px, yd + r_px))
 
-    # Place labels with collision avoidance
-    placed_bboxes: List[Tuple] = []
-    for rec, pt_bbox in zip(point_records, marker_bboxes):
-        if not rec["label"]:
-            continue
-        xd, yd = ax.transData.transform((rec["x"], rec["y"]))
-
-        offset, lbbox = _best_label_offset(
-            xd, yd,
-            rec["label"], font_pt, dpi,
-            marker_bboxes,   # penalise overlap with ALL points
-            placed_bboxes,   # penalise overlap with already-placed labels
-            axes_bbox,
-        )
-        placed_bboxes.append(lbbox)
-
-        dx, dy = offset
-        ax.annotate(
-            rec["label"], xy=(rec["x"], rec["y"]),
-            xytext=(dx, dy), textcoords="offset points",
-            fontsize=font_pt, color=THEME.INK, fontweight="bold",
-            zorder=6,
-            bbox=dict(boxstyle="round,pad=0.25", facecolor=bg,
-                      alpha=0.35, edgecolor="none"),
-        )
+    # No on-chart annotations — the legend already identifies every point.
+    # (Collision-detection infrastructure kept for potential future use.)
 
     # ── Legend ─────────────────────────────────────────────────────────────────
-    # Points that already have an on-chart annotation don't need a legend entry
-    # (the label next to the dot is enough). Only unlabelled points are added to
-    # the legend, grouped by their series name.
-    annotated_labels: set = {rec["label"] for rec in point_records if rec["label"]}
-
+    # Legend is the single source of truth for point identities — always shown.
+    # Each unique point label gets one entry with its colour and proportional dot size.
     legend_handles = []
     seen_legend: set = set()
     leg_counters = [0] * n_series
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
-            pt_lbl = pt.get("label", "")
-            color  = _scatter_color(si, leg_counters[si])
+            lbl   = pt.get("label", "") or ser.get("name", "")
+            color = _scatter_color(si, leg_counters[si])
             leg_counters[si] += 1
-            size   = pt.get("size", 150)
-            # Skip if this point has an on-chart annotation — no need to repeat
-            if pt_lbl in annotated_labels:
-                continue
-            # Use series name as the legend label for unlabelled points
-            legend_lbl = ser.get("name", "")
-            if legend_lbl and legend_lbl not in seen_legend:
-                seen_legend.add(legend_lbl)
+            size  = pt.get("size", 150)
+            if lbl and lbl not in seen_legend:
+                seen_legend.add(lbl)
                 ms = max(7, min(14, (size ** 0.5) / 2))
                 legend_handles.append(plt.Line2D([0], [0], marker="o", color="w",
                                                  markerfacecolor=color, markersize=ms,
-                                                 label=legend_lbl))
+                                                 label=lbl))
     if legend_handles:
-        ncol = min(len(legend_handles), 3)
+        ncol = min(len(legend_handles), 4)
         ax.legend(handles=legend_handles, fontsize=THEME.FS_BODY,
                   frameon=True, framealpha=0.95, edgecolor=THEME.BORDER,
-                  loc="upper left", bbox_to_anchor=(0.01, 0.99),
+                  loc="lower center", bbox_to_anchor=(0.5, -0.18),
                   ncol=ncol, handlelength=1.2)
 
     if title:

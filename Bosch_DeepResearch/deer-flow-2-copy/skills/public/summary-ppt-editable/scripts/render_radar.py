@@ -25,13 +25,25 @@ Spec format:
   "fig_height": 7
 }
 
+Per-axis scale (optional) — use when each dimension has a different natural range:
+{
+  ...
+  "dimension_ranges": [[0, 180], [0, 100], [0, 500], [0, 10], [0, 50]],
+  ...
+}
+dimension_ranges overrides score_range on a per-axis basis. Each entry is [min, max]
+for the corresponding dimension. Scores are normalised independently per axis, so
+players with wildly different units (degrees, ms, metres, watts …) all render correctly.
+Ring labels are replaced by "0% … 100%" ticks when per-axis ranges are active.
+
 Fields:
-  dimensions      Capability axes (3-8 recommended)
-  players[].name  Player label
-  players[].scores One score per dimension (must match len(dimensions))
-  players[].color Hex color for this player's polygon
+  dimensions         Capability axes (3-8 recommended)
+  players[].name     Player label
+  players[].scores   One score per dimension (must match len(dimensions))
+  players[].color    Hex color for this player's polygon
   players[].highlight  If true, draws thicker line + filled polygon (for "our" player)
-  score_range     [min, max] for the radar scale (default [0, 10])
+  score_range        [min, max] global scale — used when dimension_ranges is absent (default [0, 10])
+  dimension_ranges   List of [min, max] per dimension — overrides score_range when present
 """
 from __future__ import annotations
 
@@ -66,6 +78,21 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
     title: Optional[str] = spec.get("title")
     score_min, score_max = spec.get("score_range", [0, 10])
 
+    # Per-axis ranges — each entry is [axis_min, axis_max].
+    # When provided, every dimension is normalised independently; score_range is ignored.
+    raw_dim_ranges = spec.get("dimension_ranges", None)
+    if raw_dim_ranges is not None:
+        if len(raw_dim_ranges) != len(dimensions):
+            raise ValueError(
+                f"dimension_ranges length {len(raw_dim_ranges)} must equal "
+                f"dimensions length {len(dimensions)}"
+            )
+        dim_ranges: Optional[List[List[float]]] = [
+            [float(r[0]), float(r[1])] for r in raw_dim_ranges
+        ]
+    else:
+        dim_ranges = None  # use global score_range
+
     if len(dimensions) < 3:
         raise ValueError("radar requires at least 3 dimensions")
     if not players:
@@ -85,16 +112,25 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
 
     # ── Grid rings ────────────────────────────────────────────────────────────
     num_rings = 5
-    ring_vals = np.linspace(score_min, score_max, num_rings + 1)[1:]
-    for rv in ring_vals:
-        ring_norm = (rv - score_min) / (score_max - score_min)
-        ring_pts = [ring_norm] * n + [ring_norm]
+    ring_norms = np.linspace(0, 1, num_rings + 1)[1:]  # always 0.2, 0.4, 0.6, 0.8, 1.0
+    for rn in ring_norms:
+        ring_pts = [rn] * n + [rn]
         ax.plot(angles_closed, ring_pts, color=THEME.BORDER, lw=0.7, zorder=1)
         ax.fill(angles_closed, ring_pts, color=THEME.BORDER, alpha=0.04)
 
     # ── Axis spokes ───────────────────────────────────────────────────────────
     for angle in angles:
         ax.plot([angle, angle], [0, 1.0], color=THEME.BORDER, lw=0.8, zorder=1)
+
+    def _normalise(score: float, dim_idx: int) -> float:
+        """Normalise a raw score to [0, 1] using per-axis or global range."""
+        if dim_ranges is not None:
+            lo, hi = dim_ranges[dim_idx]
+        else:
+            lo, hi = score_min, score_max
+        if hi == lo:
+            return 0.5
+        return max(0.0, min(1.0, (score - lo) / (hi - lo)))
 
     # ── Player polygons ───────────────────────────────────────────────────────
     morandi_colors = get_categorical_palette(len(players))
@@ -105,8 +141,7 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
         color = player.get("color", morandi_colors[pi % len(morandi_colors)])
         highlight = bool(player.get("highlight", False))
 
-        # Normalise scores to [0, 1]
-        norm = [(s - score_min) / (score_max - score_min) for s in scores]
+        norm = [_normalise(s, i) for i, s in enumerate(scores)]
         norm_closed = norm + [norm[0]]
 
         lw = 2.4 if highlight else 1.5
@@ -124,7 +159,9 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
                    color=color, zorder=zorder + 1, edgecolors="white", linewidths=0.6)
 
     # ── Axis labels ───────────────────────────────────────────────────────────
-    label_pad = 1.18  # push labels slightly beyond the outer ring
+    # label_pad: normalised radius just beyond the outer ring (1.0).
+    # We increase ylim to 1.45 so labels have enough clearance above the chart.
+    label_pad = 1.22
     for angle, dim in zip(angles, dimensions):
         deg = math.degrees(angle)
         ha = "center"
@@ -138,13 +175,19 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
                 fontweight="bold",
                 bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
 
-    # ── Ring value labels — placed halfway between spoke 0 and spoke 1 ──────────
-    # Placing them on spoke 0 collides with the dimension label; the midpoint
-    # between the first two spokes is always clear.
+    # ── Ring value labels ────────────────────────────────────────────────────
+    # Placed halfway between spoke 0 and spoke 1 to avoid collisions.
+    # When per-axis ranges are active the ring represents a normalised fraction
+    # so we label it as a percentage instead of an absolute value.
     _val_angle = (angles[0] + angles[1]) / 2.0 if n > 1 else angles[0] + 0.15
-    for rv in ring_vals:
-        ring_norm = (rv - score_min) / (score_max - score_min)
-        ax.text(_val_angle, ring_norm + 0.04, str(int(rv)),
+    for rn in ring_norms:
+        if dim_ranges is not None:
+            # Show % of scale when axes differ
+            label_text = f"{int(rn * 100)}%"
+        else:
+            rv = score_min + rn * (score_max - score_min)
+            label_text = str(int(rv)) if rv == int(rv) else f"{rv:.1f}"
+        ax.text(_val_angle, rn + 0.04, label_text,
                 ha="center", va="bottom",
                 fontsize=THEME.FS_MICRO, color=THEME.MUTED,
                 bbox=dict(boxstyle="round,pad=0.2", facecolor=THEME.BG, alpha=0.35, edgecolor="none"))
@@ -153,7 +196,8 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_xticks([])
     ax.set_yticks([])
     ax.spines["polar"].set_visible(False)
-    ax.set_ylim(0, 1.25)
+    # Increase upper ylim so axis labels (at 1.22) don't get clipped
+    ax.set_ylim(0, 1.45)
 
     # ── Legend ────────────────────────────────────────────────────────────────
     legend_handles = []

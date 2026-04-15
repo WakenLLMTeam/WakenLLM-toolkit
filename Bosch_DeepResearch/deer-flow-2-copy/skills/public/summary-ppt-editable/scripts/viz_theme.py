@@ -263,14 +263,18 @@ class MorandiPalette:
     def generate_sequential(cls, n: int, base_hue: float = 30.0) -> list[str]:
         """
         Return n colors for sequential/ordered data.
-        Lightness ramps from light to dark along a single hue direction.
+        Lightness ramps from light (high) to dark (low) along a single hue direction.
         base_hue: starting hue in degrees (default 30° = warm ochre).
+
+        The L range is deliberately wide (0.96 → 0.30) so heatmaps show clear
+        contrast even when the data range is narrow.  C=0.14 gives enough
+        saturation to be clearly visible while still looking refined.
         """
         if n <= 0:
             return []
-        L_start = 0.87
-        L_end = 0.62
-        C = 0.10
+        L_start = 0.96   # near-white — low-value cells look almost blank (good UX)
+        L_end = 0.30     # dark — high-value cells are clearly saturated
+        C = 0.14
         colors = []
         for i in range(n):
             t = i / max(n - 1, 1)

@@ -207,9 +207,13 @@ Do NOT include arrow_label.
       "highlight": true                     // true for OUR player (Bosch/client)
     }
   ],
-  "score_range": [0, 10]
+  "score_range": [0, 10],
+  // Optional: use dimension_ranges instead of score_range when each axis has a different unit
+  // "dimension_ranges": [[0,180],[0,100],[0,500],[0,10],[0,50]]  // [min,max] per dimension
 }
 Use for: comparing 3-5 competitors across 4-7 capability dimensions.
+When dimensions have different natural units (FOV°, Latency ms, Range m, Power W …),
+include "dimension_ranges" to normalise each axis independently; omit score_range in that case.
 Position: "right".
 
 ### arch  (Bosch specialty — layered system architecture)

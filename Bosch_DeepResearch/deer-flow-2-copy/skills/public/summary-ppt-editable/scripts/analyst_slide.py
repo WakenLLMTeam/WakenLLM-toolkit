@@ -765,6 +765,7 @@ pie — REQUIRED: rings list with at least one ring, each ring has at least 2 sl
 radar — REQUIRED: dimensions (≥3) and players each with "scores" (NOT "values"), length must match dimensions:
   {"type":"radar","title":"...","dimensions":["D1","D2","D3","D4","D5"],"players":[{"name":"Player A","scores":[8,7,6,9,7]},{"name":"Player B","scores":[6,8,7,5,8]}],"score_range":[0,10]}
   CRITICAL: use key "scores" (not "values"); len(scores) must equal len(dimensions)
+  OPTIONAL per-axis scale: add "dimension_ranges":[[0,180],[0,100],[0,500],[0,10],[0,50]] when each dimension has a different natural unit/range (e.g. FOV in degrees, Latency in ms, Range in m). dimension_ranges overrides score_range; length must equal len(dimensions).
 
 flowchart — REQUIRED: nodes with id+label+shape+color, edges with from+to:
   {"type":"flowchart","title":"...","layout":"TB","nodes":[{"id":"n1","label":"Input","shape":"rect","color":"#dbeafe"},{"id":"n2","label":"Process","shape":"rect","color":"#dcfce7"},{"id":"n3","label":"Decision","shape":"diamond","color":"#fef9c3"},{"id":"n4","label":"Output","shape":"rounded","color":"#f3e8ff"}],"edges":[{"from":"n1","to":"n2"},{"from":"n2","to":"n3","label":"check"},{"from":"n3","to":"n4","label":"pass"}]}

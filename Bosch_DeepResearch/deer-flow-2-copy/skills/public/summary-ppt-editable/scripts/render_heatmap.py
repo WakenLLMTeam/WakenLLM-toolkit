@@ -60,7 +60,12 @@ def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_facecolor(THEME.BG)
 
     cmap_name = get_morandi_cmap(color_scheme)
-    im = ax.imshow(data, cmap=cmap_name, aspect="auto", vmin=data.min(), vmax=data.max())
+    vmin, vmax = float(data.min()), float(data.max())
+    # Guard against all-identical values — imshow with vmin==vmax produces
+    # a silent uniform (invisible) image; give a ±1 margin to force rendering.
+    if vmax <= vmin:
+        vmin, vmax = vmin - 1.0, vmax + 1.0
+    im = ax.imshow(data, cmap=cmap_name, aspect="auto", vmin=vmin, vmax=vmax)
 
     ax.set_xticks(np.arange(len(cols)))
     ax.set_yticks(np.arange(len(rows)))

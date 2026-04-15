@@ -128,7 +128,11 @@ def _tc(cfg: Dict, key: str) -> RGBColor:
 # Layout catalogue
 # ----------------
 # 2-panel:
-#   duo          — 2 equal side-by-side columns
+#   duo          — 2 equal side-by-side columns (50/50)
+#   wide_left    — panel 0 wide (65%) + panel 1 narrow (35%)
+#                  use when panel 0 is a timeline/flowchart/pipeline/arch
+#   wide_right   — panel 0 narrow (35%) + panel 1 wide (65%)
+#                  use when panel 1 is a timeline/flowchart/pipeline/arch
 #
 # 3-panel:
 #   hero_left    — panel 0 tall left (55%), panels 1+2 stacked right (45%)
@@ -146,7 +150,8 @@ def _tc(cfg: Dict, key: str) -> RGBColor:
 #   editorial  → hero_top
 
 _ALL_LAYOUTS = {
-    "duo", "hero_left", "hero_right", "hero_top", "hero_bottom",
+    "duo", "wide_left", "wide_right",
+    "hero_left", "hero_right", "hero_top", "hero_bottom",
     "triptych", "dashboard", "wide_top",
     # aliases
     "left_main", "editorial",
@@ -186,6 +191,10 @@ def _auto_layout(panels: List[Dict[str, Any]], n_panels: int) -> str:
         return ""
 
     if n_panels == 2:
+        if _vtype(0) in _WIDE_VIZ:
+            return "wide_left"
+        if _vtype(1) in _WIDE_VIZ:
+            return "wide_right"
         return "duo"
     if n_panels == 3:
         if hero_idx == 0 and _vtype(0) in _WIDE_VIZ:
@@ -230,6 +239,26 @@ def _build_panel_boxes(layout: str, n_panels: int) -> List[Tuple[float, float, f
         return [
             (L,              T, col_w, H),   # panel 0 — left
             (L + col_w + G,  T, col_w, H),   # panel 1 — right
+        ][:n_panels]
+
+    elif layout == "wide_left":
+        # panel 0: 65% wide (timeline/flowchart/pipeline/arch)
+        # panel 1: 35% narrow (supporting chart)
+        w0 = W * 0.65 - G / 2
+        w1 = W * 0.35 - G / 2
+        return [
+            (L,          T, w0, H),   # panel 0 — wide left
+            (L + w0 + G, T, w1, H),   # panel 1 — narrow right
+        ][:n_panels]
+
+    elif layout == "wide_right":
+        # panel 0: 35% narrow (supporting chart)
+        # panel 1: 65% wide (timeline/flowchart/pipeline/arch)
+        w0 = W * 0.35 - G / 2
+        w1 = W * 0.65 - G / 2
+        return [
+            (L,          T, w0, H),   # panel 0 — narrow left
+            (L + w0 + G, T, w1, H),   # panel 1 — wide right
         ][:n_panels]
 
     # ── 3-panel hero variants ─────────────────────────────────────────────────
@@ -648,7 +677,9 @@ CRITICAL RULES
 ━━━ LAYOUT CATALOGUE ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 2-panel layouts:
-  "duo"           — [0|1] two equal side-by-side panels
+  "duo"           — [0|1] two equal side-by-side panels (50/50)
+  "wide_left"     — [0(wide 65%)|1(narrow 35%)]  panel 0 is a long/wide chart (timeline/flowchart/pipeline/arch), panel 1 is a compact supporting chart
+  "wide_right"    — [0(narrow 35%)|1(wide 65%)]  panel 1 is a long/wide chart, panel 0 is compact
 
 3-panel layouts:
   "hero_left"     — [0(tall)|[1,2 stacked]]  panel 0 wide (55%), 1+2 small stacked right
@@ -670,7 +701,12 @@ Step 1 — identify panel importance:
 Step 2 — match to layout:
 
   IF n_panels == 2:
-    → "duo"  (always)
+    • panel 0 viz is WIDE (timeline/gantt/pipeline/arch/comparison/bar_chart/line_chart/waterfall/flowchart)
+      → "wide_left"   (wide chart on left 65%, compact chart on right 35%)
+    • panel 1 viz is WIDE
+      → "wide_right"  (compact chart on left 35%, wide chart on right 65%)
+    • both equal importance, neither is WIDE
+      → "duo"
 
   IF n_panels == 3:
     • hero panel 0 AND its viz type is WIDE  → "hero_top"
@@ -737,7 +773,7 @@ OUTPUT SCHEMA
   "title": "string",
   "subtitle": "string",
   "tag": "string or null",
-  "layout": "duo|hero_left|hero_right|hero_top|hero_bottom|triptych|dashboard|wide_top",
+  "layout": "duo|wide_left|wide_right|hero_left|hero_right|hero_top|hero_bottom|triptych|dashboard|wide_top",
   "panels": [
     {
       "panel_index": 0,

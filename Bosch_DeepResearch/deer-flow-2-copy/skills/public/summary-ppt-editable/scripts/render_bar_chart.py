@@ -75,12 +75,13 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
         for si, ser in enumerate(series):
             color = morandi_colors[si % len(morandi_colors)]
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
+            ser_label = ser.get("name") or f"Series {si + 1}"
             if orientation == "horizontal":
                 bars = ax.barh(x, vals, left=bottoms, color=color,
-                               label=ser.get("name", ""), height=0.6, alpha=0.88)
+                               label=ser_label, height=0.6, alpha=0.88)
             else:
                 bars = ax.bar(x, vals, bottom=bottoms, color=color,
-                              label=ser.get("name", ""), width=0.6, alpha=0.88)
+                              label=ser_label, width=0.6, alpha=0.88)
             if show_values:
                 for bar, val in zip(bars, vals):
                     if val > 0:
@@ -106,14 +107,15 @@ def render_bar_chart(spec: Dict[str, Any], output_path: str) -> str:
         for si, ser in enumerate(series):
             color = morandi_colors[si % len(morandi_colors)]
             vals = np.array(ser.get("values", [0] * n_cat), dtype=float)
+            ser_label = ser.get("name") or f"Series {si + 1}"
             # offset so the group is centred on x; bars touch each other
             offset = -group_w / 2 + si * (bar_w + bar_gap) + bar_w / 2
             if orientation == "horizontal":
                 bars = ax.barh(x + offset, vals, color=color, height=bar_w,
-                               label=ser.get("name", ""), alpha=0.88)
+                               label=ser_label, alpha=0.88)
             else:
                 bars = ax.bar(x + offset, vals, color=color, width=bar_w,
-                              label=ser.get("name", ""), alpha=0.88)
+                              label=ser_label, alpha=0.88)
             if show_values and n_ser <= 3:
                 for bar, val in zip(bars, vals):
                     if orientation == "horizontal":

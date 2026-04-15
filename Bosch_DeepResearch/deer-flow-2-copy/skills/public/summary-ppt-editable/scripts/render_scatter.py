@@ -84,23 +84,25 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     ax.set_axisbelow(True)
 
     all_x, all_y = [], []
-    # Scatter uses high-contrast palette (not Morandi) so points are clearly distinguishable.
-    # Per-point or per-series colors from spec take priority; palette is the fallback.
-    def _scatter_color(si: int, pt: dict) -> str:
-        return (pt.get("color")
-                or series[si].get("color")
-                or _SCATTER_PALETTE[si % len(_SCATTER_PALETTE)])
+    # Scatter always uses high-contrast palette — spec colors are ignored so that
+    # different data types always get clearly distinct colors.
+    # • Multiple series → one palette color per series (all points in a series share it)
+    # • Single series   → one palette color per point (each point is a different category)
+    n_series = len(series)
+
+    def _scatter_color(si: int, pi: int) -> str:
+        idx = si if n_series > 1 else pi
+        return _SCATTER_PALETTE[idx % len(_SCATTER_PALETTE)]
 
     # Collect per-series representative color for legend
-    series_colors = []
-    for si, ser in enumerate(series):
-        pts = ser.get("points", [])
-        series_colors.append(_scatter_color(si, pts[0]) if pts else _SCATTER_PALETTE[si % len(_SCATTER_PALETTE)])
+    series_colors = [_scatter_color(si, 0) for si in range(n_series)]
 
     import math as _math
+    point_counters = [0] * n_series
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
-            color = _scatter_color(si, pt)
+            color = _scatter_color(si, point_counters[si])
+            point_counters[si] += 1
             size  = pt.get("size", 150)
             x, y  = pt.get("x", 0), pt.get("y", 0)
             all_x.append(x)
@@ -139,10 +141,12 @@ def render_scatter(spec: Dict[str, Any], output_path: str) -> str:
     # Legend: one entry per point using its label + color, size proportional to bubble size
     legend_handles = []
     seen: set = set()
+    leg_counters = [0] * n_series
     for si, ser in enumerate(series):
         for pt in ser.get("points", []):
             lbl = pt.get("label", "") or ser.get("name", "")
-            color = _scatter_color(si, pt)
+            color = _scatter_color(si, leg_counters[si])
+            leg_counters[si] += 1
             size = pt.get("size", 150)
             if lbl and lbl not in seen:
                 seen.add(lbl)

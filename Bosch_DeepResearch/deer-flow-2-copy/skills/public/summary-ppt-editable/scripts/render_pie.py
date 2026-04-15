@@ -154,8 +154,11 @@ def render_pie(spec: Dict[str, Any], output_path: str) -> str:
         for si, s in enumerate(raw_slices):
             s["_color"] = _auto_color(si + ri * 4, s.get("color"))
 
-        # Collapse small slices
+        # Collapse small slices; ensure the synthetic "Other" slice also gets _color
         collapsed = _collapse_small(raw_slices, min_slice_pct, total)
+        for si, s in enumerate(collapsed):
+            if "_color" not in s:
+                s["_color"] = _auto_color(si + ri * 4, s.get("color"))
         total_collapsed = sum(s.get("value", 0) for s in collapsed)
 
         processed_rings.append({

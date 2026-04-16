@@ -63,6 +63,20 @@ from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
+# High-contrast palette for radar — Morandi is too muted to distinguish overlapping polygons
+_RADAR_PALETTE = [
+    "#E20015",  # red
+    "#2563eb",  # blue
+    "#16a34a",  # green
+    "#f97316",  # orange
+    "#9333ea",  # purple
+    "#06b6d4",  # cyan
+    "#eab308",  # amber
+    "#ec4899",  # pink
+    "#14b8a6",  # teal
+    "#f43f5e",  # rose
+]
+
 
 def _hex_to_rgba(hex_color: str, alpha: float):
     h = hex_color.lstrip("#")
@@ -133,12 +147,11 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
         return max(0.0, min(1.0, (score - lo) / (hi - lo)))
 
     # ── Player polygons ───────────────────────────────────────────────────────
-    morandi_colors = get_categorical_palette(len(players))
     for pi, player in enumerate(players):
         scores = player.get("scores", [])
         if len(scores) != n:
             continue  # skip mismatched entries
-        color = player.get("color", morandi_colors[pi % len(morandi_colors)])
+        color = player.get("color", _RADAR_PALETTE[pi % len(_RADAR_PALETTE)])
         highlight = bool(player.get("highlight", False))
 
         norm = [_normalise(s, i) for i, s in enumerate(scores)]
@@ -202,7 +215,7 @@ def render_radar(spec: Dict[str, Any], output_path: str) -> str:
     # ── Legend ────────────────────────────────────────────────────────────────
     legend_handles = []
     for pi, player in enumerate(players):
-        color = player.get("color", morandi_colors[pi % len(morandi_colors)])
+        color = player.get("color", _RADAR_PALETTE[pi % len(_RADAR_PALETTE)])
         highlight = bool(player.get("highlight", False))
         lw = 2.4 if highlight else 1.5
         patch = mpatches.Patch(facecolor=color, edgecolor=color,

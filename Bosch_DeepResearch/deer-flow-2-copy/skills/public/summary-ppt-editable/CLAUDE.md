@@ -485,10 +485,10 @@ Recursive hierarchical tree in top-to-bottom or left-to-right orientation.
   "x_label": "Implementation Complexity →",
   "y_label": "↑ Strategic Value",
   "quadrants": {
-    "top_left":     { "label": "Quick Wins",    "color": "#dcfce7" },
-    "top_right":    { "label": "Major Projects", "color": "#dbeafe" },
-    "bottom_left":  { "label": "Fill-ins",       "color": "#fef9c3" },
-    "bottom_right": { "label": "Hard Slogs",     "color": "#fee2e2" }
+    "top_left":     { "color": "#dcfce7" },
+    "top_right":    { "color": "#dbeafe" },
+    "bottom_left":  { "color": "#fef9c3" },
+    "bottom_right": { "color": "#fee2e2" }
   },
   "items": [
     { "label": "AEB 2.0",      "x": 0.3, "y": 0.85, "color": "#E20015" },
@@ -607,7 +607,8 @@ Max 5 items per quadrant (excess silently truncated). `subject` renders as a rou
   "theme": {
     "accent_rgb": [226, 0, 21],
     "body_rgb": [17, 17, 17],
-    "title_rgb": [17, 17, 17]
+    "title_rgb": [17, 17, 17],
+    "bg_rgb": [255, 255, 255]
   },
   "slides": [
     {

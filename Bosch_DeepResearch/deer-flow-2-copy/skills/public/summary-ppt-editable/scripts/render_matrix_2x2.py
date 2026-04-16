@@ -158,15 +158,7 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
             transform=ax.transAxes, zorder=1
         )
         ax.add_patch(rect)
-        label = q.get("label", "")
-        if label:
-            lx = qx + 0.25
-            ly = qy + 0.46
-            ax.text(lx, ly, label,
-                    ha="center", va="top",
-                    fontsize=THEME.FS_H1, color=THEME.INK,
-                    fontweight="bold",
-                    transform=ax.transAxes, zorder=2)
+        # quadrant labels intentionally suppressed — never rendered
 
     # Divider lines
     ax.plot([0.5, 0.5], [0.02, 0.98], color=THEME.BORDER, lw=1.2, zorder=3,
@@ -265,19 +257,7 @@ def render_matrix_2x2(spec: Dict[str, Any], output_path: str) -> str:
         ty = fig_h_px * 0.99
         forbidden_bboxes.append((tx - t_w / 2, ty - t_h, tx + t_w / 2, ty))
 
-    # Quadrant header labels: each is at axes (qx+0.25, qy+0.46)
-    for qkey, (qx, qy) in [("top_left", (0.0, 0.5)), ("top_right", (0.5, 0.5)),
-                             ("bottom_left", (0.0, 0.0)), ("bottom_right", (0.5, 0.0))]:
-        q = quadrants.get(qkey, {})
-        qlabel = q.get("label", "")
-        if qlabel:
-            lx = qx + 0.25
-            ly = qy + 0.46
-            qxd, qyd = ax.transAxes.transform((lx, ly))
-            q_w = len(qlabel) * THEME.FS_H1 * 0.62 * dpi / 72.0
-            q_h = THEME.FS_H1 * 1.4 * dpi / 72.0
-            forbidden_bboxes.append((qxd - q_w / 2, qyd - q_h / 2,
-                                     qxd + q_w / 2, qyd + q_h / 2))
+    # (quadrant header labels are suppressed — no forbidden zones needed for them)
 
     # Greedy placement: process items in order, accumulate placed_bboxes
     placed_bboxes: List[Tuple] = []

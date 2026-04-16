@@ -161,7 +161,7 @@ Write the plan to `/mnt/user-data/workspace/<name>-deck-plan.json`.
 | `title` | yes | Deck title |
 | `subtitle` | no | Subtitle on title slide |
 | `aspect_ratio` | no | `"16:9"` (default) or `"4:3"` |
-| `theme` | no | `accent_rgb [R,G,B]`, `body_rgb`, `title_rgb` |
+| `theme` | no | `accent_rgb [R,G,B]`, `body_rgb`, `title_rgb`, `bg_rgb` (slide + chart background, default `[255,255,255]`) |
 | `slides` | yes | Ordered list of slide objects |
 
 ### Slide object

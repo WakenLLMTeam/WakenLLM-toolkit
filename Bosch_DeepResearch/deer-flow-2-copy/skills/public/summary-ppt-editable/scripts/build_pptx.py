@@ -676,6 +676,7 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
     accent = _rgb(theme.get("accent_rgb"), (0, 71, 227))
     body_rgb = _rgb(theme.get("body_rgb"), (51, 65, 85))
     title_rgb = _rgb(theme.get("title_rgb"), (15, 23, 42))
+    slide_bg_rgb = _rgb(theme.get("bg_rgb"), (255, 255, 255))
 
     font_title = theme.get("font_title", "PingFang SC")
     font_body = theme.get("font_body", "PingFang SC")
@@ -699,6 +700,11 @@ def build_pptx(plan: Dict[str, Any], output_file: str) -> str:
         if stype == "section":
             _section_counter += 1
         sld = prs.slides.add_slide(blank)
+        # Apply slide background color (matches chart/figure background)
+        _bg = sld.background
+        _bg_fill = _bg.fill
+        _bg_fill.solid()
+        _bg_fill.fore_color.rgb = slide_bg_rgb
 
         if stype == "title":
             # ── Bottom accent band ────────────────────────────────────────────

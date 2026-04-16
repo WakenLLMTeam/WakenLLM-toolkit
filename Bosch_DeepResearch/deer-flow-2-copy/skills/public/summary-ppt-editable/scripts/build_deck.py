@@ -286,6 +286,14 @@ def _resolve_viz(plan: Dict[str, Any], assets_dir: str, visual_inspect: bool = F
     resolved = copy.deepcopy(plan)
     Path(assets_dir).mkdir(parents=True, exist_ok=True)
 
+    # Derive global chart background from theme.bg_rgb (default white)
+    theme = resolved.get("theme") or {}
+    _bg_list = theme.get("bg_rgb")
+    if _bg_list and len(_bg_list) == 3:
+        _theme_fig_bg = "#{:02x}{:02x}{:02x}".format(int(_bg_list[0]), int(_bg_list[1]), int(_bg_list[2]))
+    else:
+        _theme_fig_bg = "#ffffff"
+
     for slide in resolved.get("slides", []):
         fig = slide.get("figure")
         if not isinstance(fig, dict):
@@ -293,6 +301,10 @@ def _resolve_viz(plan: Dict[str, Any], assets_dir: str, visual_inspect: bool = F
         viz = fig.get("viz")
         if not isinstance(viz, dict):
             continue
+
+        # Inject theme background into spec unless the spec overrides it
+        if "fig_bg" not in viz:
+            viz["fig_bg"] = _theme_fig_bg
 
         viz_type = (viz.get("type") or "").lower()
         renderer = _RENDERERS.get(viz_type)

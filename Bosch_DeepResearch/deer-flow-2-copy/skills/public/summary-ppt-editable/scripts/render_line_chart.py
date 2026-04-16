@@ -42,6 +42,20 @@ from viz_theme import THEME, setup_matplotlib, get_categorical_palette
 
 setup_matplotlib()
 
+# High-contrast palette — Morandi lines are hard to distinguish when series overlap
+_LINE_PALETTE = [
+    "#2563eb",  # blue
+    "#E20015",  # red
+    "#16a34a",  # green
+    "#f97316",  # orange
+    "#9333ea",  # purple
+    "#06b6d4",  # cyan
+    "#eab308",  # amber
+    "#ec4899",  # pink
+    "#14b8a6",  # teal
+    "#f43f5e",  # rose
+]
+
 
 def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
     title: Optional[str] = spec.get("title")
@@ -74,10 +88,9 @@ def render_line_chart(spec: Dict[str, Any], output_path: str) -> str:
         ax.set_yscale("log")
 
     x = np.arange(len(x_labels))
-    morandi_colors = get_categorical_palette(len(series))
 
     for si, ser in enumerate(series):
-        color = morandi_colors[si % len(morandi_colors)]  # always Morandi, ignore spec color
+        color = _LINE_PALETTE[si % len(_LINE_PALETTE)]
         vals = np.array(ser.get("values", []), dtype=float)
         name = ser.get("name") or f"Series {si + 1}"
         marker = ser.get("marker", "o")

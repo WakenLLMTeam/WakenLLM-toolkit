@@ -167,6 +167,14 @@ def render_comparison(spec: Dict[str, Any], output_path: str) -> str:
     if not rows or not cols or not cells:
         raise ValueError("spec must have non-empty rows, cols, and cells")
 
+    # Drop rows where every cell is blank / "—" / "-"
+    _blank = {"", "—", "-", "–", "N/A", "n/a", "TBD", "tbd"}
+    filtered = [(r, c) for r, c in zip(rows, cells)
+                if not all((str(v).strip() in _blank) for v in c)]
+    if filtered:
+        rows, cells = zip(*filtered)
+        rows, cells = list(rows), list(cells)
+
     nr, nc = len(rows), len(cols)
     # Notes column permanently disabled — removed per design decision
     row_notes: List[str] = [""] * nr

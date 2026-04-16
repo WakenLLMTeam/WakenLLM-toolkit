@@ -52,7 +52,7 @@ def _wrap_tick_labels(labels: List[str], max_chars: int) -> List[str]:
         # Normalise split points: insert space before '(' so it becomes a word boundary
         expanded = text.replace("(", " (").replace("/", "/ ").replace("-", "- ")
         wrapped = textwrap.fill(expanded, width=max_chars,
-                                break_long_words=True, break_on_hyphens=True)
+                                break_long_words=False, break_on_hyphens=False)
         out.append(wrapped)
     return out
 

@@ -57,6 +57,11 @@ class CooldownTracker:
         elif current_score < last * _RESET_THRESHOLD:
             self._ignored_count[tier] = 0  # driver responded; reset
 
+    def record_acknowledged(self, tier: SeverityTier) -> None:
+        """Call when driver actively responds to an alert (score drops meaningfully).
+        Resets the ignore counter for that tier so escalation unwinds."""
+        self._ignored_count[tier] = 0
+
     def effective_tier(self, tier: SeverityTier) -> SeverityTier:
         """
         Return a potentially escalated tier when the driver keeps ignoring alerts.

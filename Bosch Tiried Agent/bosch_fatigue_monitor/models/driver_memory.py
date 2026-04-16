@@ -32,6 +32,14 @@ class DriverMemory:
     # ── Tags / notes ──
     notes: List[str] = field(default_factory=list)
 
+    def on_alert_ignored(self) -> None:
+        """Driver did not respond meaningfully; increment streak."""
+        self.ignored_alert_streak += 1
+
+    def on_alert_acknowledged(self) -> None:
+        """Driver responded (score dropped); reset streak."""
+        self.ignored_alert_streak = 0
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Pre-built profiles for the demo

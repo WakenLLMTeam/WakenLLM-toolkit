@@ -1,0 +1,908 @@
+{
+  "generated_at": "2026-04-14T16:20:31.487636",
+  "formula": {
+    "composite": "0.30 × text_score + 0.50 × image_score + 0.20 × audio_score",
+    "tiers": {
+      "NONE": "< 0.30",
+      "MILD": "0.30–0.54",
+      "MODERATE": "0.55–0.74",
+      "SEVERE": "≥ 0.75"
+    },
+    "weights": {
+      "text": 0.3,
+      "image": 0.5,
+      "audio": 0.2
+    }
+  },
+  "scenarios": [
+    {
+      "id": 1,
+      "label": "完全清醒",
+      "input": {
+        "composite_score": 0.05,
+        "severity_tier": "NONE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 10,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.6,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.05,
+          "image": 0.08,
+          "audio": 0.02
+        }
+      },
+      "output": {
+        "agents_fired": [],
+        "screen_display": null,
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 2,
+      "label": "轻微眨眼（干眼候选）",
+      "input": {
+        "composite_score": 0.18,
+        "severity_tier": "NONE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 15,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.08,
+          "image": 0.28,
+          "audio": 0.05
+        }
+      },
+      "output": {
+        "agents_fired": [],
+        "screen_display": null,
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 3,
+      "label": "临界 MILD（单纯PERCLOS）",
+      "input": {
+        "composite_score": 0.3,
+        "severity_tier": "MILD",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 20,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.1,
+          "image": 0.5,
+          "audio": 0.05
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 轻度疲劳 (30%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 4,
+      "label": "MILD—通勤无记忆",
+      "input": {
+        "composite_score": 0.38,
+        "severity_tier": "MILD",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 25,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.12,
+          "image": 0.62,
+          "audio": 0.1
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 轻度疲劳 (38%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 5,
+      "label": "MILD—通勤+咖啡偏好",
+      "input": {
+        "composite_score": 0.38,
+        "severity_tier": "MILD",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 25,
+        "has_driver_memory": true,
+        "memory_likes_coffee": true,
+        "memory_ok_pull_over": true,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.12,
+          "image": 0.62,
+          "audio": 0.1
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 轻度疲劳 (38%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 6,
+      "label": "MILD—低车流可停车",
+      "input": {
+        "composite_score": 0.38,
+        "severity_tier": "MILD",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 25,
+        "has_driver_memory": true,
+        "memory_likes_coffee": false,
+        "memory_ok_pull_over": true,
+        "traffic_density": 0.12,
+        "coffee_shop_km": 3.5,
+        "modality_scores": {
+          "text": 0.12,
+          "image": 0.62,
+          "audio": 0.1
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 轻度疲劳 (38%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 7,
+      "label": "MILD—长途高速早期",
+      "input": {
+        "composite_score": 0.42,
+        "severity_tier": "MILD",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 70,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.15,
+          "image": 0.68,
+          "audio": 0.12
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display"
+        ],
+        "screen_display": {
+          "message": "⚠ 轻度疲劳 (42%) | 已行驶 1h10m — 建议休息"
+        },
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 8,
+      "label": "临界MODERATE（PERCLOS+哈欠）",
+      "input": {
+        "composite_score": 0.55,
+        "severity_tier": "MODERATE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 30,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.18,
+          "image": 0.8,
+          "audio": 0.35
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 中度疲劳 (55%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": {
+          "message": "提醒您注意休息，附近「星巴克」距您约1公里，可以停车放松一下。"
+        },
+        "context_action": {
+          "message": "[轻度疲劳提示] 下一个红灯时深呼吸 3 次。\n附近：星巴克（1.2 km），可稍作休息。",
+          "action": "order_coffee",
+          "auto_ordered": false,
+          "payload": {
+            "action": "order_coffee",
+            "shop": "星巴克",
+            "auto_ordered": false
+          }
+        },
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 9,
+      "label": "MODERATE—通勤无记忆",
+      "input": {
+        "composite_score": 0.62,
+        "severity_tier": "MODERATE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 35,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.22,
+          "image": 0.88,
+          "audio": 0.48
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 中度疲劳 (62%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": {
+          "message": "提醒您注意休息，附近「星巴克」距您约1公里，可以停车放松一下。"
+        },
+        "context_action": {
+          "message": "[轻度疲劳提示] 下一个红灯时深呼吸 3 次。\n附近：星巴克（1.2 km），可稍作休息。",
+          "action": "order_coffee",
+          "auto_ordered": false,
+          "payload": {
+            "action": "order_coffee",
+            "shop": "星巴克",
+            "auto_ordered": false
+          }
+        },
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 10,
+      "label": "MODERATE—通勤+自动点咖啡",
+      "input": {
+        "composite_score": 0.62,
+        "severity_tier": "MODERATE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 35,
+        "has_driver_memory": true,
+        "memory_likes_coffee": true,
+        "memory_ok_pull_over": true,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.22,
+          "image": 0.88,
+          "audio": 0.48
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 中度疲劳 (62%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": {
+          "message": "提醒您注意休息，附近「星巴克」距您约1公里，可以停车放松一下。"
+        },
+        "context_action": {
+          "message": "[记忆偏好] 已为您自动下单：星巴克 美式（大杯）（1.2 km）。\n前往取单，顺便活动一下，有助于恢复注意力。",
+          "action": "order_coffee",
+          "auto_ordered": true,
+          "payload": {
+            "action": "order_coffee",
+            "shop": "星巴克",
+            "order": "美式（大杯）",
+            "distance_km": 1.2,
+            "auto_ordered": true
+          }
+        },
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 11,
+      "label": "MODERATE—低车流停车",
+      "input": {
+        "composite_score": 0.62,
+        "severity_tier": "MODERATE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 35,
+        "has_driver_memory": true,
+        "memory_likes_coffee": false,
+        "memory_ok_pull_over": true,
+        "traffic_density": 0.12,
+        "coffee_shop_km": 3.5,
+        "modality_scores": {
+          "text": 0.22,
+          "image": 0.88,
+          "audio": 0.48
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 中度疲劳 (62%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": {
+          "message": "提醒您注意休息，附近「星巴克」距您约4公里，可以停车放松一下。"
+        },
+        "context_action": {
+          "message": "[轻度疲劳提示] 周边路段车流稀少（密度 12%），可在红灯时安全停车，深呼吸 3 次，活动颈部再继续行驶。",
+          "action": "pull_over_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "pull_over_rest",
+            "traffic_density": 0.12
+          }
+        },
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 12,
+      "label": "MODERATE—长途高速",
+      "input": {
+        "composite_score": 0.65,
+        "severity_tier": "MODERATE",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 130,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.25,
+          "image": 0.9,
+          "audio": 0.5
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action"
+        ],
+        "screen_display": {
+          "message": "⚠ 中度疲劳 (65%) | 已行驶 2h10m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶2小时10分钟，检测到疲劳迹象。前方12公里「G2 高速服务区」，请立即驶入休息区。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 2小时10分。\n建议前往：G2 高速服务区（12.5 km，约 8 分钟）\n15分钟休息可有效恢复注意力，避免事故耽误更多时间。",
+          "action": "navigate_to_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "navigate_to_rest",
+            "destination": "G2 高速服务区",
+            "eta_min": 8,
+            "driving_duration_min": 130
+          }
+        },
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 13,
+      "label": "MODERATE—长途+2h行驶",
+      "input": {
+        "composite_score": 0.68,
+        "severity_tier": "MODERATE",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 200,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.28,
+          "image": 0.92,
+          "audio": 0.52
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action"
+        ],
+        "screen_display": {
+          "message": "⚠ 中度疲劳 (68%) | 已行驶 3h20m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶3小时20分钟，检测到疲劳迹象。前方12公里「G2 高速服务区」，请立即驶入休息区。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 3小时20分。\n建议前往：G2 高速服务区（12.5 km，约 8 分钟）\n15分钟休息可有效恢复注意力，避免事故耽误更多时间。",
+          "action": "navigate_to_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "navigate_to_rest",
+            "destination": "G2 高速服务区",
+            "eta_min": 8,
+            "driving_duration_min": 200
+          }
+        },
+        "video_record": null,
+        "phone_push": null
+      }
+    },
+    {
+      "id": 14,
+      "label": "临界SEVERE",
+      "input": {
+        "composite_score": 0.75,
+        "severity_tier": "SEVERE",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 200,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.35,
+          "image": 1.0,
+          "audio": 0.6
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action",
+          "video_record",
+          "phone_push"
+        ],
+        "screen_display": {
+          "message": "⚠ 严重疲劳 (75%) | 已行驶 3h20m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶3小时20分钟，检测到疲劳迹象。前方12公里「G2 高速服务区」，请立即驶入休息区。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 3小时20分。\n建议前往：G2 高速服务区（12.5 km，约 8 分钟）\n15分钟休息可有效恢复注意力，避免事故耽误更多时间。",
+          "action": "navigate_to_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "navigate_to_rest",
+            "destination": "G2 高速服务区",
+            "eta_min": 8,
+            "driving_duration_min": 200
+          }
+        },
+        "video_record": {
+          "filename": "fatigue_1776154831.mp4"
+        },
+        "phone_push": {
+          "message": "疲劳评分 75%，请立即休息！",
+          "payload": {
+            "title": "严重疲劳预警",
+            "body": "疲劳评分 75%，请立即休息！",
+            "score": 0.75,
+            "tier": "SEVERE",
+            "reasoning": "临界SEVERE"
+          }
+        }
+      }
+    },
+    {
+      "id": 15,
+      "label": "SEVERE—长途全链路",
+      "input": {
+        "composite_score": 0.82,
+        "severity_tier": "SEVERE",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 210,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.7,
+          "image": 1.0,
+          "audio": 0.72
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action",
+          "video_record",
+          "phone_push"
+        ],
+        "screen_display": {
+          "message": "⚠ 严重疲劳 (82%) | 已行驶 3h30m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶3小时30分钟，检测到疲劳迹象。前方12公里「G2 高速服务区」，请立即驶入休息区。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 3小时30分。\n建议前往：G2 高速服务区（12.5 km，约 8 分钟）\n15分钟休息可有效恢复注意力，避免事故耽误更多时间。",
+          "action": "navigate_to_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "navigate_to_rest",
+            "destination": "G2 高速服务区",
+            "eta_min": 8,
+            "driving_duration_min": 210
+          }
+        },
+        "video_record": {
+          "filename": "fatigue_1776154831.mp4"
+        },
+        "phone_push": {
+          "message": "疲劳评分 82%，请立即休息！",
+          "payload": {
+            "title": "严重疲劳预警",
+            "body": "疲劳评分 82%，请立即休息！",
+            "score": 0.82,
+            "tier": "SEVERE",
+            "reasoning": "SEVERE—长途全链路"
+          }
+        }
+      }
+    },
+    {
+      "id": 16,
+      "label": "SEVERE—凌晨2点×1.6",
+      "input": {
+        "composite_score": 0.87,
+        "severity_tier": "SEVERE",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 220,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.78,
+          "image": 1.0,
+          "audio": 0.82
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action",
+          "video_record",
+          "phone_push"
+        ],
+        "screen_display": {
+          "message": "⚠ 严重疲劳 (87%) | 已行驶 3h40m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶3小时40分钟，检测到疲劳迹象。前方12公里「G2 高速服务区」，请立即驶入休息区。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 3小时40分。\n建议前往：G2 高速服务区（12.5 km，约 8 分钟）\n15分钟休息可有效恢复注意力，避免事故耽误更多时间。",
+          "action": "navigate_to_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "navigate_to_rest",
+            "destination": "G2 高速服务区",
+            "eta_min": 8,
+            "driving_duration_min": 220
+          }
+        },
+        "video_record": {
+          "filename": "fatigue_1776154831.mp4"
+        },
+        "phone_push": {
+          "message": "疲劳评分 87%，请立即休息！",
+          "payload": {
+            "title": "严重疲劳预警",
+            "body": "疲劳评分 87%，请立即休息！",
+            "score": 0.87,
+            "tier": "SEVERE",
+            "reasoning": "SEVERE—凌晨2点×1.6"
+          }
+        }
+      }
+    },
+    {
+      "id": 17,
+      "label": "SEVERE—通勤极端（罕见）",
+      "input": {
+        "composite_score": 0.8,
+        "severity_tier": "SEVERE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 60,
+        "has_driver_memory": true,
+        "memory_likes_coffee": true,
+        "memory_ok_pull_over": true,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.65,
+          "image": 1.0,
+          "audio": 0.68
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action",
+          "video_record",
+          "phone_push"
+        ],
+        "screen_display": {
+          "message": "疲劳预警 严重疲劳 (80%) — 请注意驾驶安全，建议适当休息。"
+        },
+        "voice_broadcast": {
+          "message": "提醒您注意休息，附近「星巴克」距您约1公里，可以停车放松一下。"
+        },
+        "context_action": {
+          "message": "[记忆偏好] 已为您自动下单：星巴克 美式（大杯）（1.2 km）。\n前往取单，顺便活动一下，有助于恢复注意力。",
+          "action": "order_coffee",
+          "auto_ordered": true,
+          "payload": {
+            "action": "order_coffee",
+            "shop": "星巴克",
+            "order": "美式（大杯）",
+            "distance_km": 1.2,
+            "auto_ordered": true
+          }
+        },
+        "video_record": {
+          "filename": "fatigue_1776154831.mp4"
+        },
+        "phone_push": {
+          "message": "疲劳评分 80%，请立即休息！",
+          "payload": {
+            "title": "严重疲劳预警",
+            "body": "疲劳评分 80%，请立即休息！",
+            "score": 0.8,
+            "tier": "SEVERE",
+            "reasoning": "SEVERE—通勤极端（罕见）"
+          }
+        }
+      }
+    },
+    {
+      "id": 18,
+      "label": "SEVERE—极重（全信号顶满）",
+      "input": {
+        "composite_score": 0.95,
+        "severity_tier": "SEVERE",
+        "driver_profile": "long_haul",
+        "road_type": "highway",
+        "driving_duration_min": 240,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 8.0,
+        "modality_scores": {
+          "text": 0.9,
+          "image": 1.0,
+          "audio": 0.95
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action",
+          "video_record",
+          "phone_push"
+        ],
+        "screen_display": {
+          "message": "⚠ 严重疲劳 (95%) | 已行驶 4h0m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶4小时0分钟，检测到疲劳迹象。前方12公里「G2 高速服务区」，请立即驶入休息区。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 4小时0分。\n建议前往：G2 高速服务区（12.5 km，约 8 分钟）\n15分钟休息可有效恢复注意力，避免事故耽误更多时间。",
+          "action": "navigate_to_rest",
+          "auto_ordered": null,
+          "payload": {
+            "action": "navigate_to_rest",
+            "destination": "G2 高速服务区",
+            "eta_min": 8,
+            "driving_duration_min": 240
+          }
+        },
+        "video_record": {
+          "filename": "fatigue_1776154831.mp4"
+        },
+        "phone_push": {
+          "message": "疲劳评分 95%，请立即休息！",
+          "payload": {
+            "title": "严重疲劳预警",
+            "body": "疲劳评分 95%，请立即休息！",
+            "score": 0.95,
+            "tier": "SEVERE",
+            "reasoning": "SEVERE—极重（全信号顶满）"
+          }
+        }
+      }
+    },
+    {
+      "id": 19,
+      "label": "SEVERE—未知路型兜底",
+      "input": {
+        "composite_score": 0.82,
+        "severity_tier": "SEVERE",
+        "driver_profile": "long_haul",
+        "road_type": "unknown",
+        "driving_duration_min": 200,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": null,
+        "modality_scores": {
+          "text": 0.7,
+          "image": 1.0,
+          "audio": 0.72
+        }
+      },
+      "output": {
+        "agents_fired": [
+          "screen_display",
+          "voice_broadcast",
+          "context_action",
+          "video_record",
+          "phone_push"
+        ],
+        "screen_display": {
+          "message": "⚠ 严重疲劳 (82%) | 已行驶 3h20m — 建议休息"
+        },
+        "voice_broadcast": {
+          "message": "注意！您已连续驾驶3小时20分钟，请尽快靠边停车休息。"
+        },
+        "context_action": {
+          "message": "[长途预警] 已连续行驶 3小时20分，请尽快寻找安全停靠点休息。",
+          "action": "find_rest_spot",
+          "auto_ordered": null,
+          "payload": {
+            "action": "find_rest_spot"
+          }
+        },
+        "video_record": {
+          "filename": "fatigue_1776154831.mp4"
+        },
+        "phone_push": {
+          "message": "疲劳评分 82%，请立即休息！",
+          "payload": {
+            "title": "严重疲劳预警",
+            "body": "疲劳评分 82%，请立即休息！",
+            "score": 0.82,
+            "tier": "SEVERE",
+            "reasoning": "SEVERE—未知路型兜底"
+          }
+        }
+      }
+    },
+    {
+      "id": 20,
+      "label": "临界NONE→MILD边界",
+      "input": {
+        "composite_score": 0.29,
+        "severity_tier": "NONE",
+        "driver_profile": "commuter",
+        "road_type": "city",
+        "driving_duration_min": 10,
+        "has_driver_memory": false,
+        "memory_likes_coffee": null,
+        "memory_ok_pull_over": null,
+        "traffic_density": 0.5,
+        "coffee_shop_km": 1.2,
+        "modality_scores": {
+          "text": 0.09,
+          "image": 0.45,
+          "audio": 0.04
+        }
+      },
+      "output": {
+        "agents_fired": [],
+        "screen_display": null,
+        "voice_broadcast": null,
+        "context_action": null,
+        "video_record": null,
+        "phone_push": null
+      }
+    }
+  ]
+}

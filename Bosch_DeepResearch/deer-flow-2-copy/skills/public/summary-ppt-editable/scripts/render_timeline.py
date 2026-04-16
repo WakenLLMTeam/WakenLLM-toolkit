@@ -171,8 +171,7 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
     _per_stage_lvw = max(8.0, (_col_w_in / _label_char_in) * 0.65)  # label (slightly looser)
 
     for i, (x, stage) in enumerate(zip(xs, stages)):
-        active = i in highlight
-        ring_color = accent if active else THEME.BORDER
+        ring_color = accent  # all nodes use the same accent ring
 
         # Alternate annotation above/below the spine to avoid overlap
         anno_above = (i % 2 == 0)
@@ -185,11 +184,11 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
                 color=ring_color, zorder=3)
         # ── Fill ──────────────────────────────────────────────────────────────
         ax.plot(x, 0.50, "o", markersize=dot_size_inner,
-                color=morandi_colors[i], zorder=4)
+                color=THEME.ACCENT_LIGHT, zorder=4)
         # ── Number ────────────────────────────────────────────────────────────
         ax.text(x, 0.50, str(i + 1),
                 ha="center", va="center",
-                fontsize=anno_fs - 0.5, color=THEME.INK,
+                fontsize=anno_fs - 0.5, color=accent,
                 fontweight="bold", zorder=5)
 
         # ── Connector tick ────────────────────────────────────────────────────
@@ -204,7 +203,7 @@ def render_timeline(spec: Dict[str, Any], output_path: str) -> str:
         anno = _wrap_tl_text(anno_raw, _per_stage_vw) if anno_raw else ""
         if anno:
             pill_y = (0.50 + tick_len + 0.09) if anno_above else (0.50 - tick_len - 0.09)
-            pill_bg = morandi_colors[i]
+            pill_bg = THEME.ACCENT_LIGHT
             ax.text(x, pill_y, anno,
                     ha="center", va="center",
                     fontsize=anno_fs, color=THEME.INK, fontweight="bold",

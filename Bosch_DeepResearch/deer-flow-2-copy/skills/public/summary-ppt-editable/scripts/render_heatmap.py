@@ -45,7 +45,7 @@ def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
     cols: List[str] = spec.get("cols", [])
     values: List[List[float]] = spec.get("values", [])
     color_scheme: str = spec.get("color_scheme", "blue")
-    show_values: bool = spec.get("show_values", True)
+    # Cell values are always rendered — show_values in spec is ignored intentionally.
     val_fmt: str = spec.get("value_format", ".0f")
 
     if not rows or not cols or not values:
@@ -77,16 +77,17 @@ def render_heatmap(spec: Dict[str, Any], output_path: str) -> str:
     for edge in ["top", "bottom", "left", "right"]:
         ax.spines[edge].set_visible(False)
 
-    if show_values:
-        vmin, vmax = data.min(), data.max()
-        mid = (vmin + vmax) / 2
-        for i in range(len(rows)):
-            for j in range(len(cols)):
-                val = data[i, j]
-                text_color = "white" if val > mid else THEME.INK
-                ax.text(j, i, format(val, val_fmt),
-                        ha="center", va="center",
-                        fontsize=THEME.FS_BODY, color=text_color, fontweight="bold")
+    # Always draw cell value labels
+    _mid = (data.min() + data.max()) / 2
+    for i in range(len(rows)):
+        for j in range(len(cols)):
+            val = data[i, j]
+            # High-value cells use the dark end of the palette → white text is legible.
+            # Low-value cells use the light end → dark ink is legible.
+            text_color = "white" if val > _mid else THEME.INK
+            ax.text(j, i, format(val, val_fmt),
+                    ha="center", va="center",
+                    fontsize=THEME.FS_BODY, color=text_color, fontweight="bold")
 
     # Colorbar
     cbar = fig.colorbar(im, ax=ax, fraction=0.03, pad=0.02)
